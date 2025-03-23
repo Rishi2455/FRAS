@@ -233,10 +233,17 @@ def mark_attendance():
     for i, student_id in enumerate(student_ids):
         if i < len(statuses):
             status = statuses[i]
+            
+            # If the student is marked as absent, we don't add a time_in
+            time_in = None
+            if status in ['Present', 'Late']:
+                time_in = datetime.now().time()
+            
+            # Always create an attendance record so we can track absence explicitly
             attendance = Attendance(
                 student_id=student_id,
                 date=date,
-                time_in=datetime.now().time(),
+                time_in=time_in,
                 status=status
             )
             db.session.add(attendance)

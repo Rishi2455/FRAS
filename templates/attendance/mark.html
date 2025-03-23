@@ -224,7 +224,7 @@
                     // and send them to a server for face recognition
                     
                     // For demo purposes, let's simulate face recognition
-                    setTimeout(simulateFaceRecognition, 3000);
+                    window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 3000);
                 })
                 .catch(function(error) {
                     console.error('Error accessing webcam:', error);
@@ -239,11 +239,18 @@
             // Stop camera
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
+                stream = null; // Clear the stream reference to stop any ongoing face recognition
             }
             cameraContainer.classList.add('d-none');
             startCameraBtn.classList.remove('d-none');
             stopCameraBtn.classList.add('d-none');
             recognitionStatus.textContent = "Waiting for face detection...";
+            
+            // Clear any scheduled face recognition simulations
+            if (window.faceRecognitionTimeout) {
+                clearTimeout(window.faceRecognitionTimeout);
+                window.faceRecognitionTimeout = null;
+            }
         }
         
         // Simulate face recognition for demo purposes
@@ -282,8 +289,8 @@
                 // Add to activity log
                 addActivityLog(studentName, 'Present', timeStr);
                 
-                // Simulate next recognition after a delay
-                setTimeout(simulateFaceRecognition, 5000 + Math.random() * 5000);
+                // Simulate next recognition after a delay - store timeout ID so it can be cancelled
+                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 5000 + Math.random() * 5000);
             }
         }
         
