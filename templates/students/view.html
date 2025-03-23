@@ -1,108 +1,145 @@
 {% extends "layout.html" %}
 
-{% block title %}Student Details - Face Recognition Attendance System{% endblock %}
+{% block title %}{{ student.name }} - Face Recognition Attendance System{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-10">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 class="card-title">Student Details</h2>
-                    <div>
-                        <a href="{{ url_for('edit_student', id=student.id) }}" class="btn btn-outline-primary me-2">
-                            <i class="fas fa-edit me-2"></i> Edit
-                        </a>
-                        <button type="button" class="btn btn-outline-danger" 
-                                data-bs-toggle="modal" data-bs-target="#deleteModal">
-                            <i class="fas fa-trash me-2"></i> Delete
-                        </button>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body text-center p-4">
+                {% if student.image_path %}
+                    <img src="{{ url_for('uploaded_file', filename=student.image_path) }}" 
+                         class="rounded-circle mb-3" alt="{{ student.name }}" 
+                         style="width: 160px; height: 160px; object-fit: cover;">
+                {% else %}
+                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" 
+                         style="width: 160px; height: 160px;">
+                        <span class="display-4 text-white">{{ student.name[0] }}</span>
                     </div>
-                </div>
+                {% endif %}
                 
-                <div class="row">
-                    <div class="col-md-4 text-center mb-4">
-                        {% if student.image_path %}
-                            <img src="{{ url_for('uploaded_file', filename=student.image_path) }}" 
-                                 alt="{{ student.name }}" class="img-fluid rounded shadow" 
-                                 style="max-height: 250px; object-fit: cover;">
-                        {% else %}
-                            <div class="bg-secondary rounded d-flex align-items-center justify-content-center mx-auto" 
-                                 style="width: 200px; height: 200px;">
-                                <span class="display-4 text-white">{{ student.name[0] }}</span>
-                            </div>
-                        {% endif %}
+                <h2 class="card-title">{{ student.name }}</h2>
+                <p class="text-secondary">ID: {{ student.student_id }}</p>
+                
+                {% if student.email %}
+                    <p><i class="fas fa-envelope me-2"></i>{{ student.email }}</p>
+                {% endif %}
+                
+                <p><i class="fas fa-calendar me-2"></i>Added on {{ student.created_at.strftime('%Y-%m-%d') }}</p>
+                
+                <div class="d-flex justify-content-center mt-3">
+                    <a href="{{ url_for('edit_student', id=student.id) }}" class="btn btn-primary me-2">
+                        <i class="fas fa-edit me-2"></i> Edit
+                    </a>
+                    <button type="button" class="btn btn-danger" 
+                            data-bs-toggle="modal" data-bs-target="#deleteModal">
+                        <i class="fas fa-trash me-2"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="card-title mb-0">Attendance Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="p-3 border-end">
+                            <h3>{{ attendances|selectattr('status', 'equalto', 'Present')|list|length }}</h3>
+                            <p class="text-success mb-0">Present</p>
+                        </div>
                     </div>
-                    
-                    <div class="col-md-8">
-                        <div class="table-responsive">
-                            <table class="table">
-                                <tbody>
-                                    <tr>
-                                        <th style="width: 150px;">Student ID</th>
-                                        <td>{{ student.student_id }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Full Name</th>
-                                        <td>{{ student.name }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Email</th>
-                                        <td>{{ student.email or 'Not provided' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Registered On</th>
-                                        <td>{{ student.created_at.strftime('%Y-%m-%d') }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <div class="col-4">
+                        <div class="p-3 border-end">
+                            <h3>{{ attendances|selectattr('status', 'equalto', 'Late')|list|length }}</h3>
+                            <p class="text-warning mb-0">Late</p>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-3">
+                            <h3>{{ attendances|selectattr('status', 'equalto', 'Absent')|list|length }}</h3>
+                            <p class="text-danger mb-0">Absent</p>
                         </div>
                     </div>
                 </div>
                 
-                <hr class="my-4">
-                
-                <h3>Attendance History</h3>
-                {% if attendances %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Time In</th>
-                                    <th>Time Out</th>
-                                    <th>Status</th>
-                                    <th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for attendance in attendances %}
-                                    <tr>
-                                        <td>{{ attendance.date.strftime('%Y-%m-%d') }}</td>
-                                        <td>{{ attendance.time_in.strftime('%H:%M:%S') }}</td>
-                                        <td>{{ attendance.time_out.strftime('%H:%M:%S') if attendance.time_out else 'Not recorded' }}</td>
-                                        <td>
-                                            <span class="badge 
-                                                  {{ 'bg-success' if attendance.status == 'Present' else 
-                                                     'bg-warning' if attendance.status == 'Late' else 
-                                                     'bg-danger' }}">
-                                                {{ attendance.status }}
-                                            </span>
-                                        </td>
-                                        <td>{{ attendance.notes or '-' }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <div class="mt-3">
+                    <div class="progress" style="height: 10px;">
+                        {% set present_count = attendances|selectattr('status', 'equalto', 'Present')|list|length %}
+                        {% set late_count = attendances|selectattr('status', 'equalto', 'Late')|list|length %}
+                        {% set absent_count = attendances|selectattr('status', 'equalto', 'Absent')|list|length %}
+                        {% set total = present_count + late_count + absent_count %}
+                        
+                        {% if total > 0 %}
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ present_count / total * 100 }}%"></div>
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ late_count / total * 100 }}%"></div>
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                 style="width: {{ absent_count / total * 100 }}%"></div>
+                        {% else %}
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        {% endif %}
                     </div>
-                {% else %}
-                    <div class="alert alert-info">No attendance records found for this student.</div>
-                {% endif %}
-                
-                <div class="mt-4">
-                    <a href="{{ url_for('list_students') }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i> Back to Students
-                    </a>
+                    <div class="d-flex justify-content-between mt-2">
+                        <small>Attendance Rate:</small>
+                        <small>
+                            {% if total > 0 %}
+                                {{ ((present_count + late_count) / total * 100)|round(1) }}%
+                            {% else %}
+                                No data
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Attendance History</h3>
+                <a href="{{ url_for('attendance_report') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-chart-bar me-1"></i> View Reports
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Time In</th>
+                                <th>Time Out</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attendance in attendances|sort(attribute='date', reverse=true) %}
+                                <tr>
+                                    <td>{{ attendance.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="badge {% if attendance.status == 'Present' %}bg-success
+                                                           {% elif attendance.status == 'Late' %}bg-warning
+                                                           {% else %}bg-danger{% endif %}">
+                                            {{ attendance.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ attendance.time_in.strftime('%H:%M:%S') if attendance.time_in else '-' }}</td>
+                                    <td>{{ attendance.time_out.strftime('%H:%M:%S') if attendance.time_out else '-' }}</td>
+                                    <td>{{ attendance.notes or '-' }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-3">No attendance records found for this student.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

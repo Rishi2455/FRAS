@@ -1,11 +1,64 @@
 import os
-from datetime import datetime
+import csv
+import base64
+import uuid
+from io import StringIO
+from datetime import datetime, timedelta
 
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response
 from sqlalchemy import func
+from werkzeug.utils import secure_filename
 
 from app import app, db
 from models import Student, Attendance
+
+# Configure upload folder
+app.config['UPLOAD_FOLDER'] = 'student_images'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    """Check if the file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_image_file(file):
+    """Save an uploaded file to the uploads directory"""
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # Add a UUID to make the filename unique
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        # Ensure the upload folder exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        file.save(file_path)
+        return unique_filename
+    return None
+
+def save_base64_image(base64_data):
+    """Save a base64 encoded image to the uploads directory"""
+    try:
+        # Extract the base64 content from the data URL
+        if ',' in base64_data:
+            base64_data = base64_data.split(',')[1]
+        
+        # Decode base64 data
+        image_data = base64.b64decode(base64_data)
+        
+        # Generate a unique filename
+        unique_filename = f"{uuid.uuid4().hex}_webcam.jpg"
+        
+        # Ensure the upload folder exists
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
+        # Save the image
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        with open(file_path, 'wb') as f:
+            f.write(image_data)
+        
+        return unique_filename
+    except Exception as e:
+        print(f"Error saving base64 image: {e}")
+        return None
 
 
 # Home route
@@ -45,7 +98,21 @@ def add_student():
             email=email
         )
         
-        # Handle image upload later
+        # Handle image upload
+        image_filename = None
+        
+        # Check for webcam image (base64 data)
+        webcam_image = request.form.get('webcam_image')
+        if webcam_image:
+            image_filename = save_base64_image(webcam_image)
+        
+        # Check for file upload
+        elif 'student_image' in request.files:
+            image_file = request.files['student_image']
+            image_filename = save_image_file(image_file)
+        
+        if image_filename:
+            new_student.image_path = image_filename
         
         db.session.add(new_student)
         db.session.commit()
@@ -72,11 +139,35 @@ def edit_student(id):
         student.name = request.form.get('name')
         student.email = request.form.get('email')
         
-        # Handle image upload later
+        # Handle image upload
+        image_filename = None
+        
+        # Check for webcam image (base64 data)
+        webcam_image = request.form.get('webcam_image')
+        if webcam_image:
+            image_filename = save_base64_image(webcam_image)
+        
+        # Check for file upload
+        elif 'student_image' in request.files:
+            image_file = request.files['student_image']
+            if image_file.filename:  # Only update if a new file is selected
+                image_filename = save_image_file(image_file)
+        
+        if image_filename:
+            # Delete old image file if it exists
+            if student.image_path:
+                old_image_path = os.path.join(app.config['UPLOAD_FOLDER'], student.image_path)
+                if os.path.exists(old_image_path):
+                    try:
+                        os.remove(old_image_path)
+                    except Exception as e:
+                        print(f"Error removing old image: {e}")
+            
+            student.image_path = image_filename
         
         db.session.commit()
         flash('Student updated successfully!', 'success')
-        return redirect(url_for('list_students'))
+        return redirect(url_for('view_student', id=student.id))
         
     return render_template('students/edit.html', student=student)
 
@@ -84,8 +175,20 @@ def edit_student(id):
 @app.route('/students/<int:id>/delete', methods=['POST'])
 def delete_student(id):
     student = Student.query.get_or_404(id)
+    
+    # Delete student image if it exists
+    if student.image_path:
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], student.image_path)
+        if os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                print(f"Error removing student image: {e}")
+    
+    # Delete the student and their attendance records
     db.session.delete(student)
     db.session.commit()
+    
     flash('Student deleted successfully!', 'success')
     return redirect(url_for('list_students'))
 
@@ -167,11 +270,72 @@ def attendance_report():
     return render_template('attendance/report.html', stats=stats)
 
 
-@app.route('/attendance/export')
+@app.route('/attendance/export', methods=['GET', 'POST'])
 def export_attendance():
-    # This will be implemented later
-    flash('Export feature is not yet implemented', 'info')
-    return redirect(url_for('attendance_report'))
+    if request.method == 'POST':
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
+        export_format = request.form.get('format', 'csv')
+        
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            flash('Please enter valid dates', 'danger')
+            return redirect(url_for('export_attendance'))
+        
+        # Query attendance data for the date range
+        attendances = Attendance.query.filter(
+            Attendance.date >= start_date,
+            Attendance.date <= end_date
+        ).order_by(Attendance.date).all()
+        
+        # Get all students
+        students = {student.id: student for student in Student.query.all()}
+        
+        if export_format == 'csv':
+            # Create CSV file in memory
+            output = StringIO()
+            writer = csv.writer(output)
+            
+            # Write header
+            writer.writerow(['Date', 'Student ID', 'Student Name', 'Status', 'Time In', 'Time Out', 'Notes'])
+            
+            # Write data
+            for attendance in attendances:
+                student = students.get(attendance.student_id)
+                if student:
+                    writer.writerow([
+                        attendance.date.strftime('%Y-%m-%d'),
+                        student.student_id,
+                        student.name,
+                        attendance.status,
+                        attendance.time_in.strftime('%H:%M:%S') if attendance.time_in else '',
+                        attendance.time_out.strftime('%H:%M:%S') if attendance.time_out else '',
+                        attendance.notes or ''
+                    ])
+            
+            # Prepare response
+            output.seek(0)
+            filename = f"attendance_{start_date_str}_to_{end_date_str}.csv"
+            return Response(
+                output,
+                mimetype="text/csv",
+                headers={"Content-Disposition": f"attachment;filename={filename}"}
+            )
+        else:
+            flash('Only CSV export is currently supported', 'info')
+            return redirect(url_for('export_attendance'))
+    
+    # Default dates: last 30 days
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=30)
+    
+    return render_template(
+        'attendance/export.html',
+        start_date=start_date,
+        end_date=end_date
+    )
 
 
 # Create static folder for student images
