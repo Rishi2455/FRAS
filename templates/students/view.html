@@ -1,0 +1,137 @@
+{% extends "layout.html" %}
+
+{% block title %}Student Details - Face Recognition Attendance System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="card-title">Student Details</h2>
+                    <div>
+                        <a href="{{ url_for('edit_student', id=student.id) }}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-edit me-2"></i> Edit
+                        </a>
+                        <button type="button" class="btn btn-outline-danger" 
+                                data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash me-2"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 text-center mb-4">
+                        {% if student.image_path %}
+                            <img src="{{ url_for('uploaded_file', filename=student.image_path) }}" 
+                                 alt="{{ student.name }}" class="img-fluid rounded shadow" 
+                                 style="max-height: 250px; object-fit: cover;">
+                        {% else %}
+                            <div class="bg-secondary rounded d-flex align-items-center justify-content-center mx-auto" 
+                                 style="width: 200px; height: 200px;">
+                                <span class="display-4 text-white">{{ student.name[0] }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <tbody>
+                                    <tr>
+                                        <th style="width: 150px;">Student ID</th>
+                                        <td>{{ student.student_id }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Full Name</th>
+                                        <td>{{ student.name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Email</th>
+                                        <td>{{ student.email or 'Not provided' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Registered On</th>
+                                        <td>{{ student.created_at.strftime('%Y-%m-%d') }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <h3>Attendance History</h3>
+                {% if attendances %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time In</th>
+                                    <th>Time Out</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in attendances %}
+                                    <tr>
+                                        <td>{{ attendance.date.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ attendance.time_in.strftime('%H:%M:%S') }}</td>
+                                        <td>{{ attendance.time_out.strftime('%H:%M:%S') if attendance.time_out else 'Not recorded' }}</td>
+                                        <td>
+                                            <span class="badge 
+                                                  {{ 'bg-success' if attendance.status == 'Present' else 
+                                                     'bg-warning' if attendance.status == 'Late' else 
+                                                     'bg-danger' }}">
+                                                {{ attendance.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ attendance.notes or '-' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">No attendance records found for this student.</div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('list_students') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i> Back to Students
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ student.name }}</strong>?</p>
+                <p class="text-danger">This action cannot be undone and will delete all attendance records for this student.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_student', id=student.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+{% endblock %}

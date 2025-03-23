@@ -1,0 +1,438 @@
+{% extends "layout.html" %}
+
+{% block title %}Attendance Reports - Face Recognition Attendance System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Attendance Reports</h3>
+                <div>
+                    <a href="{{ url_for('export_attendance') }}" class="btn btn-outline-light">
+                        <i class="fas fa-file-export me-2"></i> Export Data
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" 
+                                type="button" role="tab" aria-controls="summary" aria-selected="true">
+                            Summary
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="student-tab" data-bs-toggle="tab" data-bs-target="#student" 
+                                type="button" role="tab" aria-controls="student" aria-selected="false">
+                            By Student
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="date-tab" data-bs-toggle="tab" data-bs-target="#date" 
+                                type="button" role="tab" aria-controls="date" aria-selected="false">
+                            By Date
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="reportTabsContent">
+                    <!-- Summary Tab -->
+                    <div class="tab-pane fade show active" id="summary" role="tabpanel" aria-labelledby="summary-tab">
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card bg-dark text-white">
+                                    <div class="card-body text-center p-4">
+                                        <h1 class="display-4">{{ stats|length }}</h1>
+                                        <p class="lead">Total Students</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-dark text-white">
+                                    <div class="card-body text-center p-4">
+                                        <h1 class="display-4">
+                                            {{ "%.1f"|format(stats|map(attribute='attendance_rate')|sum / stats|length if stats|length > 0 else 0) }}%
+                                        </h1>
+                                        <p class="lead">Average Attendance</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-dark text-white">
+                                    <div class="card-body text-center p-4">
+                                        <h1 class="display-4">
+                                            {{ stats|map(attribute='total')|sum }}
+                                        </h1>
+                                        <p class="lead">Total Records</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h4 class="mb-3">Attendance Rate by Student</h4>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Student ID</th>
+                                        <th>Name</th>
+                                        <th>Present</th>
+                                        <th>Late</th>
+                                        <th>Absent</th>
+                                        <th>Total</th>
+                                        <th>Attendance Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in stats|sort(attribute='attendance_rate', reverse=true) %}
+                                        <tr>
+                                            <td>{{ stat.student.student_id }}</td>
+                                            <td>{{ stat.student.name }}</td>
+                                            <td>{{ stat.present }}</td>
+                                            <td>{{ stat.late }}</td>
+                                            <td>{{ stat.absent }}</td>
+                                            <td>{{ stat.total }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="progress flex-grow-1 me-2" style="height: 10px;">
+                                                        <div class="progress-bar bg-success" role="progressbar" 
+                                                             style="width: {{ stat.attendance_rate }}%">
+                                                        </div>
+                                                    </div>
+                                                    <span>{{ "%.1f"|format(stat.attendance_rate) }}%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center">No attendance data available</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Student Tab -->
+                    <div class="tab-pane fade" id="student" role="tabpanel" aria-labelledby="student-tab">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="student-select" class="form-label">Select Student</label>
+                                    <select id="student-select" class="form-select">
+                                        <option value="">-- Select a student --</option>
+                                        {% for stat in stats %}
+                                            <option value="{{ stat.student.id }}">{{ stat.student.name }} ({{ stat.student.student_id }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="date-range" class="form-label">Date Range</label>
+                                    <div class="d-flex">
+                                        <input type="date" id="start-date" class="form-control me-2">
+                                        <span class="align-self-center">to</span>
+                                        <input type="date" id="end-date" class="form-control ms-2">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="student-report-content" class="mt-4">
+                            <div class="alert alert-info">
+                                Select a student and date range to view detailed attendance information.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Date Tab -->
+                    <div class="tab-pane fade" id="date" role="tabpanel" aria-labelledby="date-tab">
+                        <div class="mb-4">
+                            <div class="form-group">
+                                <label for="report-date" class="form-label">Select Date</label>
+                                <input type="date" id="report-date" class="form-control" style="max-width: 300px;">
+                            </div>
+                        </div>
+                        
+                        <div id="date-report-content" class="mt-4">
+                            <div class="alert alert-info">
+                                Select a date to view attendance for that day.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize with current date
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('report-date').value = today;
+        
+        // Date range defaults (last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        document.getElementById('start-date').value = thirtyDaysAgo.toISOString().split('T')[0];
+        document.getElementById('end-date').value = today;
+        
+        // Student report generation
+        const studentSelect = document.getElementById('student-select');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const studentReportContent = document.getElementById('student-report-content');
+        
+        function generateStudentReport() {
+            const studentId = studentSelect.value;
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            
+            if (!studentId) {
+                studentReportContent.innerHTML = `
+                    <div class="alert alert-info">
+                        Select a student and date range to view detailed attendance information.
+                    </div>
+                `;
+                return;
+            }
+            
+            // In a real application, this would fetch data from the server
+            // For this prototype, we'll generate sample data
+            
+            // Find student in stats
+            const studentStats = {
+                name: studentSelect.options[studentSelect.selectedIndex].text.split(' (')[0],
+                id: studentId,
+                dates: []
+            };
+            
+            // Generate random attendance data for date range
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+                // Skip weekends
+                if (date.getDay() === 0 || date.getDay() === 6) continue;
+                
+                const dateStr = date.toISOString().split('T')[0];
+                const status = Math.random() > 0.2 ? 
+                               (Math.random() > 0.3 ? 'Present' : 'Late') : 'Absent';
+                
+                studentStats.dates.push({
+                    date: dateStr,
+                    status: status,
+                    time_in: status !== 'Absent' ? 
+                             `${8 + Math.floor(Math.random() * 2)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}:00` :
+                             null
+                });
+            }
+            
+            // Generate HTML output
+            let html = `
+                <h4>${studentStats.name}'s Attendance</h4>
+                <p>Period: ${startDate} to ${endDate}</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center p-3">
+                                <h2>${studentStats.dates.filter(d => d.status === 'Present').length}</h2>
+                                <p class="mb-0">Present</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body text-center p-3">
+                                <h2>${studentStats.dates.filter(d => d.status === 'Late').length}</h2>
+                                <p class="mb-0">Late</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center p-3">
+                                <h2>${studentStats.dates.filter(d => d.status === 'Absent').length}</h2>
+                                <p class="mb-0">Absent</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Time In</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            // Sort dates in descending order
+            studentStats.dates.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            for (const record of studentStats.dates) {
+                const statusClass = record.status === 'Present' ? 'text-success' :
+                                   record.status === 'Late' ? 'text-warning' : 'text-danger';
+                
+                html += `
+                    <tr>
+                        <td>${record.date}</td>
+                        <td><span class="${statusClass}">${record.status}</span></td>
+                        <td>${record.time_in || '-'}</td>
+                    </tr>
+                `;
+            }
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            studentReportContent.innerHTML = html;
+        }
+        
+        studentSelect.addEventListener('change', generateStudentReport);
+        startDateInput.addEventListener('change', generateStudentReport);
+        endDateInput.addEventListener('change', generateStudentReport);
+        
+        // Date report generation
+        const reportDateInput = document.getElementById('report-date');
+        const dateReportContent = document.getElementById('date-report-content');
+        
+        function generateDateReport() {
+            const selectedDate = reportDateInput.value;
+            
+            if (!selectedDate) {
+                dateReportContent.innerHTML = `
+                    <div class="alert alert-info">
+                        Select a date to view attendance for that day.
+                    </div>
+                `;
+                return;
+            }
+            
+            // In a real application, this would fetch data from the server
+            // For this prototype, we'll generate sample data
+            
+            // Get student list from the stats
+            const students = [];
+            const studentSelections = studentSelect.options;
+            for (let i = 1; i < studentSelections.length; i++) {
+                const option = studentSelections[i];
+                const name = option.text.split(' (')[0];
+                const id = option.text.split('(')[1].replace(')', '');
+                
+                const status = Math.random() > 0.2 ? 
+                              (Math.random() > 0.3 ? 'Present' : 'Late') : 'Absent';
+                
+                students.push({
+                    id: option.value,
+                    name: name,
+                    student_id: id,
+                    status: status,
+                    time_in: status !== 'Absent' ? 
+                             `${8 + Math.floor(Math.random() * 2)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}:00` :
+                             null
+                });
+            }
+            
+            // Calculate summary
+            const present = students.filter(s => s.status === 'Present').length;
+            const late = students.filter(s => s.status === 'Late').length;
+            const absent = students.filter(s => s.status === 'Absent').length;
+            const total = students.length;
+            const attendanceRate = total > 0 ? ((present + late) / total * 100).toFixed(1) : 0;
+            
+            // Generate HTML output
+            let html = `
+                <h4>Attendance for ${selectedDate}</h4>
+                
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center p-3">
+                                <h2>${present}</h2>
+                                <p class="mb-0">Present</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body text-center p-3">
+                                <h2>${late}</h2>
+                                <p class="mb-0">Late</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center p-3">
+                                <h2>${absent}</h2>
+                                <p class="mb-0">Absent</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center p-3">
+                                <h2>${attendanceRate}%</h2>
+                                <p class="mb-0">Attendance Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Student ID</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Time In</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            // Sort by name
+            students.sort((a, b) => a.name.localeCompare(b.name));
+            
+            for (const student of students) {
+                const statusClass = student.status === 'Present' ? 'text-success' :
+                                   student.status === 'Late' ? 'text-warning' : 'text-danger';
+                
+                html += `
+                    <tr>
+                        <td>${student.student_id}</td>
+                        <td>${student.name}</td>
+                        <td><span class="${statusClass}">${student.status}</span></td>
+                        <td>${student.time_in || '-'}</td>
+                    </tr>
+                `;
+            }
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            dateReportContent.innerHTML = html;
+        }
+        
+        reportDateInput.addEventListener('change', generateDateReport);
+    });
+</script>
+{% endblock %}

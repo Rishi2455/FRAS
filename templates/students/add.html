@@ -1,0 +1,137 @@
+{% extends "layout.html" %}
+
+{% block title %}Add New Student - Face Recognition Attendance System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title mb-4">Add New Student</h2>
+                
+                <form action="{{ url_for('add_student') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="student_id" class="form-label">Student ID *</label>
+                        <input type="text" class="form-control" id="student_id" name="student_id" required>
+                        <div class="form-text">Enter a unique identifier for the student (e.g., admission number)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="student_image" class="form-label">Student Photo</label>
+                        <input type="file" class="form-control" id="student_image" name="student_image" accept="image/*">
+                        <div class="form-text">Upload a clear front-facing photo for face recognition</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="capture_webcam" name="capture_webcam">
+                            <label class="form-check-label" for="capture_webcam">
+                                Capture photo using webcam
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="webcam-container" class="mb-3 d-none">
+                        <div class="camera-container mb-3">
+                            <video id="webcam" class="camera-feed" autoplay playsinline></video>
+                        </div>
+                        <div class="d-flex justify-content-center">
+                            <button type="button" id="capture-btn" class="btn btn-primary me-2">
+                                <i class="fas fa-camera me-2"></i> Capture Photo
+                            </button>
+                            <button type="button" id="retake-btn" class="btn btn-secondary d-none">
+                                <i class="fas fa-redo me-2"></i> Retake
+                            </button>
+                        </div>
+                        <canvas id="canvas" class="d-none"></canvas>
+                        <input type="hidden" id="webcam_image" name="webcam_image">
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{{ url_for('list_students') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Add Student</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const webcamCheckbox = document.getElementById('capture_webcam');
+        const webcamContainer = document.getElementById('webcam-container');
+        const fileInput = document.getElementById('student_image');
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('capture-btn');
+        const retakeBtn = document.getElementById('retake-btn');
+        const webcamImageInput = document.getElementById('webcam_image');
+        
+        let stream = null;
+        
+        webcamCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                webcamContainer.classList.remove('d-none');
+                fileInput.disabled = true;
+                
+                // Start webcam
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(mediaStream) {
+                        stream = mediaStream;
+                        video.srcObject = mediaStream;
+                    })
+                    .catch(function(error) {
+                        console.error('Error accessing webcam:', error);
+                        alert('Could not access webcam. Please make sure your camera is connected and permissions are granted.');
+                        webcamCheckbox.checked = false;
+                        webcamContainer.classList.add('d-none');
+                        fileInput.disabled = false;
+                    });
+            } else {
+                webcamContainer.classList.add('d-none');
+                fileInput.disabled = false;
+                
+                // Stop webcam
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            }
+        });
+        
+        captureBtn.addEventListener('click', function() {
+            // Capture photo from webcam
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            // Convert to base64 data URL
+            const imageDataURL = canvas.toDataURL('image/jpeg');
+            webcamImageInput.value = imageDataURL;
+            
+            // Show retake button
+            captureBtn.classList.add('d-none');
+            retakeBtn.classList.remove('d-none');
+        });
+        
+        retakeBtn.addEventListener('click', function() {
+            webcamImageInput.value = '';
+            captureBtn.classList.remove('d-none');
+            retakeBtn.classList.add('d-none');
+        });
+    });
+</script>
+{% endblock %}
