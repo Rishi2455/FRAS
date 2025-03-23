@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.cmake
     pkgs.zlib
     pkgs.tk
     pkgs.tcl
