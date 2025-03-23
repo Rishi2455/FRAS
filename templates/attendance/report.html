@@ -194,6 +194,8 @@
             const startDate = startDateInput.value;
             const endDate = endDateInput.value;
             
+            console.log("Generating student report for:", studentId, startDate, endDate);
+            
             if (!studentId) {
                 studentReportContent.innerHTML = `
                     <div class="alert alert-info">
@@ -214,14 +216,19 @@
             `;
             
             // Fetch data from the server
-            fetch(`/api/student_attendance?student_id=${studentId}&start_date=${startDate}&end_date=${endDate}`)
+            const apiUrl = `/api/student_attendance?student_id=${studentId}&start_date=${startDate}&end_date=${endDate}`;
+            console.log("Fetching data from:", apiUrl);
+            
+            fetch(apiUrl)
                 .then(response => {
+                    console.log("API Response status:", response.status);
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
                     return response.json();
                 })
                 .then(data => {
+                    console.log("API Data received:", data);
                     // Generate HTML output
                     let html = `
                         <h4>${data.student.name}'s Attendance</h4>
@@ -308,6 +315,13 @@
                 });
         }
         
+        // Also trigger the report when the student tab is shown
+        document.getElementById('student-tab').addEventListener('click', function() {
+            if (studentSelect.value) {
+                generateStudentReport();
+            }
+        });
+        
         studentSelect.addEventListener('change', generateStudentReport);
         startDateInput.addEventListener('change', generateStudentReport);
         endDateInput.addEventListener('change', generateStudentReport);
@@ -318,6 +332,7 @@
         
         function generateDateReport() {
             const selectedDate = reportDateInput.value;
+            console.log("Generating date report for:", selectedDate);
             
             if (!selectedDate) {
                 dateReportContent.innerHTML = `
@@ -339,14 +354,19 @@
             `;
             
             // Fetch data from the server
-            fetch(`/api/date_attendance?date=${selectedDate}`)
+            const apiUrl = `/api/date_attendance?date=${selectedDate}`;
+            console.log("Fetching data from:", apiUrl);
+            
+            fetch(apiUrl)
                 .then(response => {
+                    console.log("API Response status:", response.status);
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
                     return response.json();
                 })
                 .then(data => {
+                    console.log("API Data received:", data);
                     // Generate HTML output
                     let html = `
                         <h4>Attendance for ${selectedDate}</h4>
@@ -445,7 +465,20 @@
                 });
         }
         
+        // Add event listener for date changes
         reportDateInput.addEventListener('change', generateDateReport);
+        
+        // Also trigger the report when the date tab is shown
+        document.getElementById('date-tab').addEventListener('click', function() {
+            if (reportDateInput.value) {
+                generateDateReport();
+            }
+        });
+        
+        // Initial report generation
+        if (reportDateInput.value) {
+            setTimeout(generateDateReport, 500); // Slight delay to ensure everything is loaded
+        }
     });
 </script>
 {% endblock %}
