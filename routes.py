@@ -269,6 +269,111 @@ def attendance_report():
     
     return render_template('attendance/report.html', stats=stats)
 
+@app.route('/api/student_attendance')
+def api_student_attendance():
+    """API endpoint to get attendance data for a specific student in a date range"""
+    student_id = request.args.get('student_id')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    if not student_id or not start_date_str or not end_date_str:
+        return jsonify({"error": "Missing required parameters"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format"}), 400
+    
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify({"error": "Student not found"}), 404
+    
+    # Query attendance records for this student in the date range
+    attendance_records = Attendance.query.filter(
+        Attendance.student_id == student_id,
+        Attendance.date >= start_date,
+        Attendance.date <= end_date
+    ).order_by(Attendance.date.desc()).all()
+    
+    # Format the data for the response
+    records = []
+    for record in attendance_records:
+        records.append({
+            "date": record.date.strftime('%Y-%m-%d'),
+            "status": record.status,
+            "time_in": record.time_in.strftime('%H:%M:%S') if record.time_in else None
+        })
+    
+    # Calculate summary stats
+    present = sum(1 for record in attendance_records if record.status == 'Present')
+    late = sum(1 for record in attendance_records if record.status == 'Late')
+    absent = sum(1 for record in attendance_records if record.status == 'Absent')
+    
+    return jsonify({
+        "student": {
+            "id": student.id,
+            "student_id": student.student_id,
+            "name": student.name
+        },
+        "attendance_records": records,
+        "stats": {
+            "present": present,
+            "late": late,
+            "absent": absent,
+            "total": len(records)
+        }
+    })
+
+@app.route('/api/date_attendance')
+def api_date_attendance():
+    """API endpoint to get attendance data for all students on a specific date"""
+    date_str = request.args.get('date')
+    
+    if not date_str:
+        return jsonify({"error": "Missing date parameter"}), 400
+    
+    try:
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format"}), 400
+    
+    # Get all students
+    students = Student.query.all()
+    
+    # Get attendance records for the selected date
+    attendance_records = {a.student_id: a for a in Attendance.query.filter_by(date=selected_date).all()}
+    
+    # Format the data for the response
+    records = []
+    for student in students:
+        attendance = attendance_records.get(student.id)
+        records.append({
+            "student_id": student.id,
+            "name": student.name,
+            "display_id": student.student_id,
+            "status": attendance.status if attendance else "Absent",
+            "time_in": attendance.time_in.strftime('%H:%M:%S') if attendance and attendance.time_in else None
+        })
+    
+    # Calculate summary stats
+    present = sum(1 for record in records if record['status'] == 'Present')
+    late = sum(1 for record in records if record['status'] == 'Late')
+    absent = sum(1 for record in records if record['status'] == 'Absent')
+    total = len(records)
+    
+    return jsonify({
+        "date": date_str,
+        "attendance_records": records,
+        "stats": {
+            "present": present,
+            "late": late,
+            "absent": absent,
+            "total": total,
+            "attendance_rate": ((present + late) / total * 100) if total > 0 else 0
+        }
+    })
+
 
 @app.route('/attendance/export', methods=['GET', 'POST'])
 def export_attendance():

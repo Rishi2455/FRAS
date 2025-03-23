@@ -203,103 +203,109 @@
                 return;
             }
             
-            // In a real application, this would fetch data from the server
-            // For this prototype, we'll generate sample data
+            // Show loading indicator
+            studentReportContent.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading attendance data...</p>
+                </div>
+            `;
             
-            // Find student in stats
-            const studentStats = {
-                name: studentSelect.options[studentSelect.selectedIndex].text.split(' (')[0],
-                id: studentId,
-                dates: []
-            };
-            
-            // Generate random attendance data for date range
-            const start = new Date(startDate);
-            const end = new Date(endDate);
-            for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-                // Skip weekends
-                if (date.getDay() === 0 || date.getDay() === 6) continue;
-                
-                const dateStr = date.toISOString().split('T')[0];
-                const status = Math.random() > 0.2 ? 
-                               (Math.random() > 0.3 ? 'Present' : 'Late') : 'Absent';
-                
-                studentStats.dates.push({
-                    date: dateStr,
-                    status: status,
-                    time_in: status !== 'Absent' ? 
-                             `${8 + Math.floor(Math.random() * 2)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}:00` :
-                             null
+            // Fetch data from the server
+            fetch(`/api/student_attendance?student_id=${studentId}&start_date=${startDate}&end_date=${endDate}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Generate HTML output
+                    let html = `
+                        <h4>${data.student.name}'s Attendance</h4>
+                        <p>Period: ${startDate} to ${endDate}</p>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h2>${data.stats.present}</h2>
+                                        <p class="mb-0">Present</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h2>${data.stats.late}</h2>
+                                        <p class="mb-0">Late</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h2>${data.stats.absent}</h2>
+                                        <p class="mb-0">Absent</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (data.attendance_records.length === 0) {
+                        html += `
+                            <div class="alert alert-info">
+                                No attendance records found for this student in the selected date range.
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                            <th>Time In</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+                        
+                        for (const record of data.attendance_records) {
+                            const statusClass = record.status === 'Present' ? 'text-success' :
+                                              record.status === 'Late' ? 'text-warning' : 'text-danger';
+                            
+                            html += `
+                                <tr>
+                                    <td>${record.date}</td>
+                                    <td><span class="${statusClass}">${record.status}</span></td>
+                                    <td>${record.time_in || '-'}</td>
+                                </tr>
+                            `;
+                        }
+                        
+                        html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    }
+                    
+                    studentReportContent.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error fetching student attendance data:', error);
+                    studentReportContent.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Error loading attendance data. Please try again.
+                        </div>
+                    `;
                 });
-            }
-            
-            // Generate HTML output
-            let html = `
-                <h4>${studentStats.name}'s Attendance</h4>
-                <p>Period: ${startDate} to ${endDate}</p>
-                
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="card bg-success text-white">
-                            <div class="card-body text-center p-3">
-                                <h2>${studentStats.dates.filter(d => d.status === 'Present').length}</h2>
-                                <p class="mb-0">Present</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card bg-warning text-white">
-                            <div class="card-body text-center p-3">
-                                <h2>${studentStats.dates.filter(d => d.status === 'Late').length}</h2>
-                                <p class="mb-0">Late</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="card bg-danger text-white">
-                            <div class="card-body text-center p-3">
-                                <h2>${studentStats.dates.filter(d => d.status === 'Absent').length}</h2>
-                                <p class="mb-0">Absent</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th>Time In</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            // Sort dates in descending order
-            studentStats.dates.sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            for (const record of studentStats.dates) {
-                const statusClass = record.status === 'Present' ? 'text-success' :
-                                   record.status === 'Late' ? 'text-warning' : 'text-danger';
-                
-                html += `
-                    <tr>
-                        <td>${record.date}</td>
-                        <td><span class="${statusClass}">${record.status}</span></td>
-                        <td>${record.time_in || '-'}</td>
-                    </tr>
-                `;
-            }
-            
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
-            studentReportContent.innerHTML = html;
         }
         
         studentSelect.addEventListener('change', generateStudentReport);
@@ -322,114 +328,121 @@
                 return;
             }
             
-            // In a real application, this would fetch data from the server
-            // For this prototype, we'll generate sample data
+            // Show loading indicator
+            dateReportContent.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading attendance data...</p>
+                </div>
+            `;
             
-            // Get student list from the stats
-            const students = [];
-            const studentSelections = studentSelect.options;
-            for (let i = 1; i < studentSelections.length; i++) {
-                const option = studentSelections[i];
-                const name = option.text.split(' (')[0];
-                const id = option.text.split('(')[1].replace(')', '');
-                
-                const status = Math.random() > 0.2 ? 
-                              (Math.random() > 0.3 ? 'Present' : 'Late') : 'Absent';
-                
-                students.push({
-                    id: option.value,
-                    name: name,
-                    student_id: id,
-                    status: status,
-                    time_in: status !== 'Absent' ? 
-                             `${8 + Math.floor(Math.random() * 2)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}:00` :
-                             null
+            // Fetch data from the server
+            fetch(`/api/date_attendance?date=${selectedDate}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Generate HTML output
+                    let html = `
+                        <h4>Attendance for ${selectedDate}</h4>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h2>${data.stats.present}</h2>
+                                        <p class="mb-0">Present</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h2>${data.stats.late}</h2>
+                                        <p class="mb-0">Late</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h2>${data.stats.absent}</h2>
+                                        <p class="mb-0">Absent</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h2>${data.stats.attendance_rate.toFixed(1)}%</h2>
+                                        <p class="mb-0">Attendance Rate</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (data.attendance_records.length === 0) {
+                        html += `
+                            <div class="alert alert-info">
+                                No attendance records found for this date.
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Student ID</th>
+                                            <th>Name</th>
+                                            <th>Status</th>
+                                            <th>Time In</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+                        
+                        // Sort by name
+                        data.attendance_records.sort((a, b) => a.name.localeCompare(b.name));
+                        
+                        for (const student of data.attendance_records) {
+                            const statusClass = student.status === 'Present' ? 'text-success' :
+                                               student.status === 'Late' ? 'text-warning' : 'text-danger';
+                            
+                            html += `
+                                <tr>
+                                    <td>${student.display_id}</td>
+                                    <td>${student.name}</td>
+                                    <td><span class="${statusClass}">${student.status}</span></td>
+                                    <td>${student.time_in || '-'}</td>
+                                </tr>
+                            `;
+                        }
+                        
+                        html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    }
+                    
+                    dateReportContent.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error fetching date attendance data:', error);
+                    dateReportContent.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Error loading attendance data. Please try again.
+                        </div>
+                    `;
                 });
-            }
-            
-            // Calculate summary
-            const present = students.filter(s => s.status === 'Present').length;
-            const late = students.filter(s => s.status === 'Late').length;
-            const absent = students.filter(s => s.status === 'Absent').length;
-            const total = students.length;
-            const attendanceRate = total > 0 ? ((present + late) / total * 100).toFixed(1) : 0;
-            
-            // Generate HTML output
-            let html = `
-                <h4>Attendance for ${selectedDate}</h4>
-                
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card bg-success text-white">
-                            <div class="card-body text-center p-3">
-                                <h2>${present}</h2>
-                                <p class="mb-0">Present</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-warning text-white">
-                            <div class="card-body text-center p-3">
-                                <h2>${late}</h2>
-                                <p class="mb-0">Late</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-danger text-white">
-                            <div class="card-body text-center p-3">
-                                <h2>${absent}</h2>
-                                <p class="mb-0">Absent</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-info text-white">
-                            <div class="card-body text-center p-3">
-                                <h2>${attendanceRate}%</h2>
-                                <p class="mb-0">Attendance Rate</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Student ID</th>
-                                <th>Name</th>
-                                <th>Status</th>
-                                <th>Time In</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            // Sort by name
-            students.sort((a, b) => a.name.localeCompare(b.name));
-            
-            for (const student of students) {
-                const statusClass = student.status === 'Present' ? 'text-success' :
-                                   student.status === 'Late' ? 'text-warning' : 'text-danger';
-                
-                html += `
-                    <tr>
-                        <td>${student.student_id}</td>
-                        <td>${student.name}</td>
-                        <td><span class="${statusClass}">${student.status}</span></td>
-                        <td>${student.time_in || '-'}</td>
-                    </tr>
-                `;
-            }
-            
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
-            dateReportContent.innerHTML = html;
         }
         
         reportDateInput.addEventListener('change', generateDateReport);
