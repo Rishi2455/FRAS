@@ -3,42 +3,56 @@
 {% block title %}Mark Attendance - Face Recognition Attendance System{% endblock %}
 
 {% block content %}
+<h2 class="page-title">Mark Attendance</h2>
+
 <div class="row">
     <div class="col-lg-8">
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card animated-card border-0 mb-4">
             <div class="card-header bg-dark text-white">
-                <h3 class="card-title mb-0">Mark Attendance</h3>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0"><i class="fas fa-clipboard-check me-2"></i>Attendance Sheet</h3>
+                    <div class="badge bg-primary rounded-pill fs-6">
+                        <i class="far fa-calendar-alt me-1"></i>
+                        {{ selected_date.strftime('%d %b, %Y') }}
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h4>Date: {{ selected_date.strftime('%Y-%m-%d') }}</h4>
+                        <h4 class="text-primary mb-0">
+                            <i class="fas fa-users me-2"></i>Total Students: <span class="badge bg-primary rounded-pill">{{ students|length }}</span>
+                        </h4>
                     </div>
                     <div>
                         <form id="dateSelectForm" class="d-flex align-items-center">
-                            <label for="date-select" class="me-2">Select Date:</label>
-                            <input type="date" id="date-select" name="date" class="form-control" 
+                            <label for="date-select" class="me-2 fw-bold">Change Date:</label>
+                            <input type="date" id="date-select" name="date" class="form-control shadow-sm" 
                                    value="{{ selected_date.strftime('%Y-%m-%d') }}">
-                            <button type="submit" class="btn btn-primary ms-2">Go</button>
+                            <button type="submit" class="btn btn-primary ms-2">
+                                <i class="fas fa-calendar-day me-1"></i> Go
+                            </button>
                         </form>
                     </div>
                 </div>
                 
                 <div class="row mb-4">
                     <div class="col-md-12">
-                        <div class="alert alert-info">
+                        <div class="alert alert-info border-0 shadow-sm">
                             <div class="d-flex align-items-center">
-                                <i class="fas fa-info-circle me-3 display-6"></i>
+                                <div class="p-3 rounded-circle bg-primary bg-opacity-25 me-3">
+                                    <i class="fas fa-camera fs-3 text-primary"></i>
+                                </div>
                                 <div>
-                                    <h5 class="mb-1">Face Recognition Mode</h5>
+                                    <h5 class="mb-1 fw-bold">Face Recognition Mode</h5>
                                     <p class="mb-0">Enable the camera to automatically mark attendance when faces are recognized.</p>
                                 </div>
                                 <div class="ms-auto">
-                                    <button id="start-camera-btn" class="btn btn-primary">
+                                    <button id="start-camera-btn" class="btn btn-primary btn-lg">
                                         <i class="fas fa-camera me-2"></i> Start Camera
                                     </button>
-                                    <button id="stop-camera-btn" class="btn btn-secondary d-none">
-                                        <i class="fas fa-stop me-2"></i> Stop Camera
+                                    <button id="stop-camera-btn" class="btn btn-danger btn-lg d-none">
+                                        <i class="fas fa-stop-circle me-2"></i> Stop Camera
                                     </button>
                                 </div>
                             </div>
@@ -52,8 +66,13 @@
                             <video id="webcam" class="camera-feed" autoplay playsinline></video>
                             <div id="face-boxes"></div>
                         </div>
-                        <div class="text-center">
-                            <p id="recognition-status">Waiting for face detection...</p>
+                        <div class="text-center mt-3">
+                            <div class="d-inline-flex align-items-center py-2 px-4 rounded-pill bg-dark bg-opacity-10">
+                                <div class="spinner-grow spinner-grow-sm text-primary me-2" role="status" id="detection-spinner">
+                                    <span class="visually-hidden">Detecting...</span>
+                                </div>
+                                <p id="recognition-status" class="mb-0 fw-bold">Waiting for face detection...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -66,30 +85,33 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Student ID</th>
-                                        <th>Name</th>
-                                        <th>Status</th>
-                                        <th>Last Updated</th>
+                                        <th><i class="fas fa-id-card me-2"></i>Student ID</th>
+                                        <th><i class="fas fa-user me-2"></i>Name</th>
+                                        <th><i class="fas fa-clipboard-check me-2"></i>Status</th>
+                                        <th><i class="fas fa-clock me-2"></i>Last Updated</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for student in students %}
                                         <tr>
-                                            <td>{{ student.student_id }}</td>
+                                            <td class="fw-bold">{{ student.student_id }}</td>
                                             <td>{{ student.name }}</td>
                                             <td>
                                                 <input type="hidden" name="student_id" value="{{ student.id }}">
-                                                <select name="status" class="form-select" id="status-{{ student.id }}">
+                                                <select name="status" class="form-select shadow-sm" id="status-{{ student.id }}">
                                                     <option value="Present" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Present' }}>Present</option>
                                                     <option value="Late" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Late' }}>Late</option>
                                                     <option value="Absent" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Absent' else 'selected' if not attendances.get(student.id) }}>Absent</option>
                                                 </select>
                                             </td>
-                                            <td id="updated-{{ student.id }}">
-                                                {% if attendances.get(student.id) %}
-                                                    {{ attendances[student.id].time_in.strftime('%H:%M:%S') }}
+                                            <td id="updated-{{ student.id }}" class="fw-bold">
+                                                {% if attendances.get(student.id) and attendances[student.id].time_in %}
+                                                    <div class="badge bg-success rounded-pill">
+                                                        <i class="fas fa-clock me-1"></i>
+                                                        {{ attendances[student.id].time_in.strftime('%H:%M:%S') }}
+                                                    </div>
                                                 {% else %}
-                                                    -
+                                                    <span class="text-muted">Not marked</span>
                                                 {% endif %}
                                             </td>
                                         </tr>
@@ -99,10 +121,10 @@
                         </div>
                         
                         <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary btn-lg">
                                 <i class="fas fa-arrow-left me-2"></i> Back
                             </a>
-                            <button type="submit" class="btn btn-success">
+                            <button type="submit" class="btn btn-success btn-lg">
                                 <i class="fas fa-save me-2"></i> Save Attendance
                             </button>
                         </div>
@@ -113,68 +135,96 @@
     </div>
     
     <div class="col-lg-4">
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card animated-card border-0 mb-4">
             <div class="card-header bg-dark text-white">
-                <h3 class="card-title mb-0">Today's Summary</h3>
+                <h3 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Today's Summary</h3>
             </div>
             <div class="card-body">
-                <div class="row text-center">
+                <div class="row text-center g-2 mb-3">
                     <div class="col-4">
-                        <div class="p-3 border-end">
-                            <h2 id="present-count">{{ attendances.values()|selectattr('status', 'equalto', 'Present')|list|length }}</h2>
-                            <p class="text-success mb-0">Present</p>
+                        <div class="card card-hover bg-success bg-opacity-10 border-0 p-3">
+                            <div class="fs-1 text-success mb-1 fw-bold" id="present-count">{{ attendances.values()|selectattr('status', 'equalto', 'Present')|list|length }}</div>
+                            <div class="small text-success fw-bold text-uppercase">Present</div>
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="p-3 border-end">
-                            <h2 id="late-count">{{ attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}</h2>
-                            <p class="text-warning mb-0">Late</p>
+                        <div class="card card-hover bg-warning bg-opacity-10 border-0 p-3">
+                            <div class="fs-1 text-warning mb-1 fw-bold" id="late-count">{{ attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}</div>
+                            <div class="small text-warning fw-bold text-uppercase">Late</div>
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="p-3">
-                            <h2 id="absent-count">{{ students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}</h2>
-                            <p class="text-danger mb-0">Absent</p>
+                        <div class="card card-hover bg-danger bg-opacity-10 border-0 p-3">
+                            <div class="fs-1 text-danger mb-1 fw-bold" id="absent-count">{{ students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}</div>
+                            <div class="small text-danger fw-bold text-uppercase">Absent</div>
                         </div>
+                    </div>
+                </div>
+                
+                <div class="progress mb-3" style="height: 10px;">
+                    <div class="progress-bar bg-success" role="progressbar" id="present-bar" 
+                         style="width: {{ (attendances.values()|selectattr('status', 'equalto', 'Present')|list|length / students|length * 100)|round|int if students else 0 }}%" 
+                         aria-valuenow="{{ attendances.values()|selectattr('status', 'equalto', 'Present')|list|length }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="{{ students|length }}">
+                    </div>
+                    <div class="progress-bar bg-warning" role="progressbar" id="late-bar" 
+                         style="width: {{ (attendances.values()|selectattr('status', 'equalto', 'Late')|list|length / students|length * 100)|round|int if students else 0 }}%" 
+                         aria-valuenow="{{ attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="{{ students|length }}">
+                    </div>
+                    <div class="progress-bar bg-danger" role="progressbar" id="absent-bar" 
+                         style="width: {{ ((students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length) / students|length * 100)|round|int if students else 0 }}%" 
+                         aria-valuenow="{{ students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="{{ students|length }}">
                     </div>
                 </div>
                 
                 <hr>
                 
                 <div class="attendance-log mt-4">
-                    <h5>Recent Activity</h5>
-                    <div id="activity-log" class="list-group overflow-auto" style="max-height: 300px;">
-                        {% for attendance in attendances.values()|sort(attribute='time_in', reverse=True) %}
-                            <div class="list-group-item list-group-item-action">
+                    <h5 class="d-flex align-items-center mb-3">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h5>
+                    <div id="activity-log" class="list-group overflow-auto shadow-sm rounded" style="max-height: 300px;">
+                        {% for attendance in attendances.values()|sort(attribute='time_in', reverse=True) if attendance.time_in %}
+                            <div class="list-group-item list-group-item-action border-0">
                                 <div class="d-flex w-100 justify-content-between">
-                                    <h6 class="mb-1">{{ students|selectattr('id', 'equalto', attendance.student_id)|map(attribute='name')|first }}</h6>
-                                    <small>{{ attendance.time_in.strftime('%H:%M:%S') }}</small>
+                                    <h6 class="mb-1 fw-bold">{{ students|selectattr('id', 'equalto', attendance.student_id)|map(attribute='name')|first }}</h6>
+                                    <small class="text-muted">{{ attendance.time_in.strftime('%H:%M:%S') }}</small>
                                 </div>
-                                <p class="mb-1">Marked as <span class="
-                                    {% if attendance.status == 'Present' %}text-success
-                                    {% elif attendance.status == 'Late' %}text-warning
-                                    {% else %}text-danger{% endif %}">
+                                <p class="mb-1">Marked as 
+                                    <span class="status-badge 
+                                    {% if attendance.status == 'Present' %}status-present
+                                    {% elif attendance.status == 'Late' %}status-late
+                                    {% else %}status-absent{% endif %}">
                                     {{ attendance.status }}
-                                </span></p>
+                                    </span>
+                                </p>
                             </div>
                         {% else %}
-                            <div class="list-group-item">No attendance records for today.</div>
+                            <div class="list-group-item border-0 text-center py-4">
+                                <i class="fas fa-clock fs-4 text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No attendance records for today.</p>
+                            </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="card border-0 shadow-sm">
+        <div class="card animated-card border-0">
             <div class="card-header bg-dark text-white">
-                <h3 class="card-title mb-0">Options</h3>
+                <h3 class="card-title mb-0"><i class="fas fa-cog me-2"></i>Options</h3>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('attendance_report') }}" class="btn btn-outline-primary">
+                <div class="d-grid gap-3">
+                    <a href="{{ url_for('attendance_report') }}" class="btn btn-primary btn-lg card-hover">
                         <i class="fas fa-chart-bar me-2"></i> View Reports
                     </a>
-                    <a href="{{ url_for('export_attendance') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('export_attendance') }}" class="btn btn-secondary btn-lg card-hover">
                         <i class="fas fa-file-export me-2"></i> Export Attendance
                     </a>
                 </div>
