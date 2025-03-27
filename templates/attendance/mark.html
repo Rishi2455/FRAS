@@ -307,58 +307,90 @@
         function simulateFaceRecognition() {
             if (!stream) return;
             
-            // Choose a random student for demonstration
-            const studentIds = Array.from(document.querySelectorAll('select[name="status"]')).map(el => el.id.split('-')[1]);
+            // In a real application, we would detect and recognize the face in front of the camera
+            // For demo purposes, we'll prompt the user to select their ID
             
-            if (studentIds.length > 0) {
-                const randomIndex = Math.floor(Math.random() * studentIds.length);
-                const randomStudentId = studentIds[randomIndex];
-                
-                // Draw a face box
-                drawFaceBox();
-                
-                // Update recognition status
-                const studentName = document.querySelector(`tr:has(#status-${randomStudentId})`).children[1].textContent;
-                recognitionStatus.textContent = `Face recognized: ${studentName}`;
-                
-                // Mark as present
-                const statusSelect = document.getElementById(`status-${randomStudentId}`);
-                statusSelect.value = 'Present';
-                
-                // Update timestamp
-                const now = new Date();
-                // Format time as 12-hour format with AM/PM
-                const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                const seconds = now.getSeconds().toString().padStart(2, '0');
-                const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
-                const timeStr = `${hours}:${minutes}:${seconds} ${ampm}`;
-                
-                // Update the UI with the formatted time
-                const timeElement = document.getElementById(`updated-${randomStudentId}`);
-                if (timeElement) {
-                    // Create or update badge with new time
-                    const badge = document.createElement('div');
-                    badge.className = 'badge bg-success rounded-pill';
-                    badge.innerHTML = `<i class="fas fa-clock me-1"></i> ${timeStr}`;
-                    
-                    // Replace existing content with the new badge
-                    timeElement.innerHTML = '';
-                    timeElement.appendChild(badge);
-                }
-                
-                // Show notification
-                showNotification(studentName);
-                
-                // Update summary counts
-                updateSummaryCounts();
-                
-                // Add to activity log
-                addActivityLog(studentName, 'Present', timeStr);
-                
-                // Simulate next recognition after a delay - store timeout ID so it can be cancelled
-                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 5000 + Math.random() * 5000);
+            // First, draw a face box to show detection is working
+            drawFaceBox();
+            
+            // Now ask the user which student they are (for demonstration only)
+            const studentIdToMark = prompt("Face detection successful! For demonstration purposes, please enter YOUR student ID number:");
+            
+            if (!studentIdToMark) {
+                // User cancelled, just update the status and schedule next detection
+                recognitionStatus.textContent = "Face detection cancelled. Waiting for next face...";
+                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 5000);
+                return;
             }
+            
+            // Find the student with this ID
+            let foundStudent = false;
+            const studentRows = document.querySelectorAll('table tbody tr');
+            
+            for (const row of studentRows) {
+                const studentIdCell = row.querySelector('td:first-child');
+                
+                if (studentIdCell && studentIdCell.textContent.trim() === studentIdToMark.trim()) {
+                    foundStudent = true;
+                    
+                    // Get the database ID from the hidden input
+                    const studentId = row.querySelector('input[name="student_id"]').value;
+                    const studentName = row.querySelector('td:nth-child(2)').textContent;
+                    
+                    // Mark as present
+                    const statusSelect = document.getElementById(`status-${studentId}`);
+                    statusSelect.value = 'Present';
+                    
+                    // Update recognition status
+                    recognitionStatus.textContent = `Face recognized: ${studentName}`;
+                    
+                    // Update attendance status in UI and database
+                    updateAttendanceUI(studentId, studentName);
+                    break;
+                }
+            }
+            
+            if (!foundStudent) {
+                // No matching student found
+                recognitionStatus.textContent = "Student ID not found. Please try again.";
+                alert("Student ID not found. Please make sure you entered a valid ID.");
+            }
+            
+            // Schedule next detection after a delay
+            window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 8000);
+        }
+        
+        function updateAttendanceUI(studentId, studentName) {
+            // Update timestamp
+            const now = new Date();
+            // Format time as 12-hour format with AM/PM
+            const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+            const timeStr = `${hours}:${minutes}:${seconds} ${ampm}`;
+            
+            // Update the UI with the formatted time
+            const timeElement = document.getElementById(`updated-${studentId}`);
+            if (timeElement) {
+                // Create or update badge with new time
+                const badge = document.createElement('div');
+                badge.className = 'badge bg-success rounded-pill';
+                badge.innerHTML = `<i class="fas fa-clock me-1"></i> ${timeStr}`;
+                
+                // Replace existing content with the new badge
+                timeElement.innerHTML = '';
+                timeElement.appendChild(badge);
+            }
+            
+            // Show notification
+            showNotification(studentName);
+            
+            // Update summary counts
+            updateSummaryCounts();
+            
+            // Add to activity log
+            addActivityLog(studentName, 'Present', timeStr);
         }
         
         function drawFaceBox() {
