@@ -14,12 +14,12 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-for-testing")
 
-# configure the database, relative to the app instance folder
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
+# Configure the database to use SQLite
+# This will work both locally and on PythonAnywhere
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL") or \
+    "sqlite:///" + os.path.join(basedir, "attendance.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # initialize the app with the extension, flask-sqlalchemy >= 3.0.x
 db.init_app(app)
 
