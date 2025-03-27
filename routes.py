@@ -176,20 +176,29 @@ def edit_student(id):
 def delete_student(id):
     student = Student.query.get_or_404(id)
     
-    # Delete student image if it exists
-    if student.image_path:
-        image_path = os.path.join(app.config['UPLOAD_FOLDER'], student.image_path)
-        if os.path.exists(image_path):
-            try:
-                os.remove(image_path)
-            except Exception as e:
-                print(f"Error removing student image: {e}")
+    try:
+        # First delete all attendance records related to this student
+        Attendance.query.filter_by(student_id=student.id).delete()
+        
+        # Delete student image if it exists
+        if student.image_path:
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], student.image_path)
+            if os.path.exists(image_path):
+                try:
+                    os.remove(image_path)
+                except Exception as e:
+                    print(f"Error removing student image: {e}")
+        
+        # Now delete the student
+        db.session.delete(student)
+        db.session.commit()
+        
+        flash('Student deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting student: {e}")
+        flash('An error occurred while deleting the student.', 'danger')
     
-    # Delete the student and their attendance records
-    db.session.delete(student)
-    db.session.commit()
-    
-    flash('Student deleted successfully!', 'success')
     return redirect(url_for('list_students'))
 
 
