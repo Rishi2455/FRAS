@@ -236,6 +236,9 @@ def mark_attendance():
     except ValueError:
         date = get_current_datetime().date()
     
+    # Get existing attendance records for this date to preserve timestamps
+    existing_attendance = {a.student_id: a for a in Attendance.query.filter_by(date=date).all()}
+    
     # Delete existing attendance records for this date
     Attendance.query.filter_by(date=date).delete()
     
@@ -247,7 +250,12 @@ def mark_attendance():
             # If the student is marked as absent, we don't add a time_in
             time_in = None
             if status in ['Present', 'Late']:
-                time_in = get_current_datetime().time()
+                # If the student was already marked present/late, preserve their original timestamp
+                if student_id in existing_attendance and existing_attendance[student_id].status in ['Present', 'Late']:
+                    time_in = existing_attendance[student_id].time_in
+                else:
+                    # Only set a new timestamp for newly marked students
+                    time_in = get_current_datetime().time()
             
             # Always create an attendance record so we can track absence explicitly
             attendance = Attendance(
