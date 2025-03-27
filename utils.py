@@ -13,17 +13,19 @@ def get_current_datetime():
 
 def format_date(date_obj):
     """Format a date object to YYYY-MM-DD string."""
-    # Convert to Kolkata timezone if the date has a timezone
-    if date_obj.tzinfo is not None:
+    # Check if it's a datetime object (which might have tzinfo)
+    # Date objects don't have tzinfo attribute
+    if hasattr(date_obj, 'tzinfo') and date_obj.tzinfo is not None:
         date_obj = date_obj.astimezone(KOLKATA_TZ)
     return date_obj.strftime("%Y-%m-%d")
 
-def format_time(date_obj):
-    """Format a date object to HH:MM:SS string."""
-    # Convert to Kolkata timezone if the date has a timezone
-    if date_obj.tzinfo is not None:
-        date_obj = date_obj.astimezone(KOLKATA_TZ)
-    return date_obj.strftime("%H:%M:%S")
+def format_time(time_obj):
+    """Format a time object to HH:MM:SS string."""
+    # Check if it's a datetime object (which might have tzinfo)
+    # Time objects don't have tzinfo attribute
+    if hasattr(time_obj, 'tzinfo') and time_obj.tzinfo is not None:
+        time_obj = time_obj.astimezone(KOLKATA_TZ)
+    return time_obj.strftime("%H:%M:%S")
 
 def parse_date(date_string):
     """Parse a date string in YYYY-MM-DD format and set to Kolkata timezone."""
