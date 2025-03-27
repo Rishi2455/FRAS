@@ -20,12 +20,12 @@ def format_date(date_obj):
     return date_obj.strftime("%Y-%m-%d")
 
 def format_time(time_obj):
-    """Format a time object to HH:MM:SS string."""
+    """Format a time object to 12-hour format with AM/PM (hh:mm:ss AM/PM)."""
     # Check if it's a datetime object (which might have tzinfo)
     # Time objects don't have tzinfo attribute
     if hasattr(time_obj, 'tzinfo') and time_obj.tzinfo is not None:
         time_obj = time_obj.astimezone(KOLKATA_TZ)
-    return time_obj.strftime("%H:%M:%S")
+    return time_obj.strftime("%I:%M:%S %p")
 
 def parse_date(date_string):
     """Parse a date string in YYYY-MM-DD format and set to Kolkata timezone."""

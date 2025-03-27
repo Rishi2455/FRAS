@@ -108,7 +108,7 @@
                                                 {% if attendances.get(student.id) and attendances[student.id].time_in %}
                                                     <div class="badge bg-success rounded-pill">
                                                         <i class="fas fa-clock me-1"></i>
-                                                        {{ attendances[student.id].time_in.strftime('%H:%M:%S') }}
+                                                        {{ attendances[student.id].time_in.strftime('%I:%M:%S %p') }}
                                                     </div>
                                                 {% else %}
                                                     <span class="text-muted">Not marked</span>
@@ -193,7 +193,7 @@
                             <div class="list-group-item list-group-item-action border-0">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1 fw-bold">{{ students|selectattr('id', 'equalto', attendance.student_id)|map(attribute='name')|first }}</h6>
-                                    <small class="text-muted">{{ attendance.time_in.strftime('%H:%M:%S') }}</small>
+                                    <small class="text-muted">{{ attendance.time_in.strftime('%I:%M:%S %p') }}</small>
                                 </div>
                                 <p class="mb-1">Marked as 
                                     <span class="status-badge 
@@ -327,8 +327,25 @@
                 
                 // Update timestamp
                 const now = new Date();
-                const timeStr = now.toTimeString().split(' ')[0];
-                document.getElementById(`updated-${randomStudentId}`).textContent = timeStr;
+                // Format time as 12-hour format with AM/PM
+                const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const seconds = now.getSeconds().toString().padStart(2, '0');
+                const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+                const timeStr = `${hours}:${minutes}:${seconds} ${ampm}`;
+                
+                // Update the UI with the formatted time
+                const timeElement = document.getElementById(`updated-${randomStudentId}`);
+                if (timeElement) {
+                    // Create or update badge with new time
+                    const badge = document.createElement('div');
+                    badge.className = 'badge bg-success rounded-pill';
+                    badge.innerHTML = `<i class="fas fa-clock me-1"></i> ${timeStr}`;
+                    
+                    // Replace existing content with the new badge
+                    timeElement.innerHTML = '';
+                    timeElement.appendChild(badge);
+                }
                 
                 // Show notification
                 showNotification(studentName);
