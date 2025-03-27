@@ -236,9 +236,6 @@ def mark_attendance():
     except ValueError:
         date = get_current_datetime().date()
     
-    # Get existing attendance records for this date to preserve timestamps
-    existing_attendance = {a.student_id: a for a in Attendance.query.filter_by(date=date).all()}
-    
     # Delete existing attendance records for this date
     Attendance.query.filter_by(date=date).delete()
     
@@ -247,14 +244,24 @@ def mark_attendance():
         if i < len(statuses):
             status = statuses[i]
             
-            # If the student is marked as absent, we don't add a time_in
+            # Default time is None (for absent students)
             time_in = None
+            
+            # If the student is marked as present or late, we need a time
             if status in ['Present', 'Late']:
-                # If the student was already marked present/late, preserve their original timestamp
-                if student_id in existing_attendance and existing_attendance[student_id].status in ['Present', 'Late']:
-                    time_in = existing_attendance[student_id].time_in
+                # Check if we have a custom timestamp from the form (set by face recognition)
+                time_field_name = f'time_in-{student_id}'
+                if time_field_name in request.form and request.form[time_field_name]:
+                    # Parse the timestamp from the form (format: "HH:MM:SS")
+                    try:
+                        time_str = request.form[time_field_name]
+                        hours, minutes, seconds = map(int, time_str.split(':'))
+                        time_in = datetime.time(hours, minutes, seconds)
+                    except (ValueError, TypeError):
+                        # If parsing fails, use current time
+                        time_in = get_current_datetime().time()
                 else:
-                    # Only set a new timestamp for newly marked students
+                    # No custom time, use current time
                     time_in = get_current_datetime().time()
             
             # Always create an attendance record so we can track absence explicitly

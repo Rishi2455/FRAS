@@ -98,6 +98,9 @@
                                             <td>{{ student.name }}</td>
                                             <td>
                                                 <input type="hidden" name="student_id" value="{{ student.id }}">
+                                                {% if attendances.get(student.id) and attendances[student.id].time_in %}
+                                                    <input type="hidden" name="time_in-{{ student.id }}" value="{{ attendances[student.id].time_in }}">
+                                                {% endif %}
                                                 <select name="status" class="form-select shadow-sm" id="status-{{ student.id }}">
                                                     <option value="Present" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Present' }}>Present</option>
                                                     <option value="Late" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Late' }}>Late</option>
@@ -376,6 +379,27 @@
                 // Replace existing content with the new badge
                 timeElement.innerHTML = '';
                 timeElement.appendChild(badge);
+            }
+            
+            // Add or update hidden field with timestamp
+            const studentRow = document.querySelector(`input[name="student_id"][value="${studentId}"]`).closest('tr');
+            if (studentRow) {
+                // Remove any existing timestamp field
+                const existingField = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
+                if (existingField) {
+                    existingField.remove();
+                }
+                
+                // Add new timestamp field
+                const timeField = document.createElement('input');
+                timeField.type = 'hidden';
+                timeField.name = `time_in-${studentId}`;
+                // Format time in 24-hour format for backend
+                const hours24 = now.getHours().toString().padStart(2, '0');
+                timeField.value = `${hours24}:${minutes}:${seconds}`;
+                
+                // Add it to the form
+                studentRow.querySelector('td:nth-child(3)').appendChild(timeField);
             }
             
             // Show notification

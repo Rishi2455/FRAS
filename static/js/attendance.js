@@ -181,6 +181,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
             const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
             updatedCell.innerHTML = `<div class="badge bg-success rounded-pill"><i class="fas fa-clock me-1"></i>${timeString}</div>`;
+            
+            // Add a hidden field with the timestamp for the form submission
+            const studentRow = document.querySelector(`tr:has(input[name="student_id"][value="${studentId}"])`);
+            if (studentRow) {
+                // Remove any existing timestamp field
+                const existingTimestamp = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
+                if (existingTimestamp) {
+                    existingTimestamp.remove();
+                }
+                
+                // Create a new timestamp field with the current time
+                const timestampField = document.createElement('input');
+                timestampField.type = 'hidden';
+                timestampField.name = `time_in-${studentId}`;
+                timestampField.value = `${now.getHours().toString().padStart(2, '0')}:${minutes}:${seconds}`; // 24-hour format for backend
+                
+                // Add it to the row
+                studentRow.querySelector('td:nth-child(3)').appendChild(timestampField);
+            }
         }
         
         // Update attendance counters
