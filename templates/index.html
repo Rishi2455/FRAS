@@ -5,16 +5,17 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-10">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm animated-card">
             <div class="card-body p-5">
                 <div class="text-center mb-5">
                     <h1 class="display-4 fw-bold">Face Recognition Attendance System</h1>
                     <p class="lead text-secondary">Automating attendance tracking with facial recognition technology</p>
                 </div>
                 
-                <div class="row mb-5">
-                    <div class="col-md-4 mb-4">
-                        <div class="card border-0 shadow-sm h-100 bg-dark text-light">
+                <!-- Main Features Section with flex layout -->
+                <div class="main-features">
+                    <div class="feature-card">
+                        <div class="card h-100 bg-dark text-light animated-card">
                             <div class="card-body text-center p-4">
                                 <div class="display-5 mb-3">
                                     <i class="fas fa-camera"></i>
@@ -26,8 +27,8 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-4 mb-4">
-                        <div class="card border-0 shadow-sm h-100 bg-dark text-light">
+                    <div class="feature-card">
+                        <div class="card h-100 bg-dark text-light animated-card">
                             <div class="card-body text-center p-4">
                                 <div class="display-5 mb-3">
                                     <i class="fas fa-users"></i>
@@ -39,8 +40,8 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-4 mb-4">
-                        <div class="card border-0 shadow-sm h-100 bg-dark text-light">
+                    <div class="feature-card">
+                        <div class="card h-100 bg-dark text-light animated-card">
                             <div class="card-body text-center p-4">
                                 <div class="display-5 mb-3">
                                     <i class="fas fa-chart-bar"></i>
@@ -53,43 +54,31 @@
                     </div>
                 </div>
                 
-                <div class="bg-dark text-light p-4 rounded">
-                    <h3>How It Works</h3>
-                    <div class="row mt-4">
-                        <div class="col-md-4 mb-3">
-                            <div class="d-flex">
-                                <div class="bg-secondary rounded-circle p-3 me-3">
-                                    <span class="fw-bold">1</span>
-                                </div>
-                                <div>
-                                    <h5>Add Students</h5>
-                                    <p class="text-secondary">Add student profiles with photos to the database</p>
-                                </div>
-                            </div>
+                <!-- How It Works Section with improved steps -->
+                <div class="bg-dark text-light p-4 rounded mt-4">
+                    <h3 class="mb-4">How It Works</h3>
+                    
+                    <div class="how-it-works-step">
+                        <div class="step-circle">1</div>
+                        <div class="how-it-works-content">
+                            <h5>Add Students</h5>
+                            <p class="text-secondary mb-0">Add student profiles with photos to the database</p>
                         </div>
-                        
-                        <div class="col-md-4 mb-3">
-                            <div class="d-flex">
-                                <div class="bg-secondary rounded-circle p-3 me-3">
-                                    <span class="fw-bold">2</span>
-                                </div>
-                                <div>
-                                    <h5>Recognize Faces</h5>
-                                    <p class="text-secondary">The system automatically recognizes students using facial recognition</p>
-                                </div>
-                            </div>
+                    </div>
+                    
+                    <div class="how-it-works-step">
+                        <div class="step-circle">2</div>
+                        <div class="how-it-works-content">
+                            <h5>Recognize Faces</h5>
+                            <p class="text-secondary mb-0">The system automatically recognizes students using facial recognition</p>
                         </div>
-                        
-                        <div class="col-md-4 mb-3">
-                            <div class="d-flex">
-                                <div class="bg-secondary rounded-circle p-3 me-3">
-                                    <span class="fw-bold">3</span>
-                                </div>
-                                <div>
-                                    <h5>Track Attendance</h5>
-                                    <p class="text-secondary">Attendance records are saved and can be exported</p>
-                                </div>
-                            </div>
+                    </div>
+                    
+                    <div class="how-it-works-step">
+                        <div class="step-circle">3</div>
+                        <div class="how-it-works-content">
+                            <h5>Track Attendance</h5>
+                            <p class="text-secondary mb-0">Attendance records are saved and can be exported</p>
                         </div>
                     </div>
                 </div>
@@ -100,5 +89,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<!-- Using cdnjs for Font Awesome to ensure it loads properly -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" integrity="sha512-fD9DI5bZwQxOi7MhYWnnNPlvXdp/2Pj3XSTRrFs5FQa4mizyGLnJcN6tuvUS6LbmgN1ut+XGSABKvjN0H6Aoow==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 {% endblock %}
