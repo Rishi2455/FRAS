@@ -13,41 +13,41 @@
                 </div>
                 
                 <!-- Main Features Section -->
-                <div class="row mb-5">
-                    <div class="col-md-4 mb-4">
-                        <div class="card border-0 shadow-sm h-100 bg-dark text-light">
-                            <div class="card-body text-center p-4">
+                <div class="row mb-5 d-flex align-items-stretch">
+                    <div class="col-md-4 d-flex">
+                        <div class="card border-0 shadow-sm flex-fill bg-dark text-light">
+                            <div class="card-body text-center p-4 d-flex flex-column">
                                 <div class="display-5 mb-3">
                                     <i class="fas fa-camera"></i>
                                 </div>
                                 <h3>Mark Attendance</h3>
-                                <p class="text-secondary">Use facial recognition to automatically mark student attendance</p>
+                                <p class="text-secondary flex-grow-1">Use facial recognition to automatically mark student attendance</p>
                                 <a href="{{ url_for('attendance') }}" class="btn btn-outline-light mt-3">Get Started</a>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-md-4 mb-4">
-                        <div class="card border-0 shadow-sm h-100 bg-dark text-light">
-                            <div class="card-body text-center p-4">
+                    <div class="col-md-4 d-flex">
+                        <div class="card border-0 shadow-sm flex-fill bg-dark text-light">
+                            <div class="card-body text-center p-4 d-flex flex-column">
                                 <div class="display-5 mb-3">
                                     <i class="fas fa-users"></i>
                                 </div>
                                 <h3>Manage Students</h3>
-                                <p class="text-secondary">Add, edit or remove students from the database</p>
+                                <p class="text-secondary flex-grow-1">Add, edit or remove students from the database</p>
                                 <a href="{{ url_for('list_students') }}" class="btn btn-outline-light mt-3">View Students</a>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="col-md-4 mb-4">
-                        <div class="card border-0 shadow-sm h-100 bg-dark text-light">
-                            <div class="card-body text-center p-4">
+                    <div class="col-md-4 d-flex">
+                        <div class="card border-0 shadow-sm flex-fill bg-dark text-light">
+                            <div class="card-body text-center p-4 d-flex flex-column">
                                 <div class="display-5 mb-3">
                                     <i class="fas fa-chart-bar"></i>
                                 </div>
                                 <h3>Attendance Reports</h3>
-                                <p class="text-secondary">View and export attendance records and statistics</p>
+                                <p class="text-secondary flex-grow-1">View and export attendance records and statistics</p>
                                 <a href="{{ url_for('attendance_report') }}" class="btn btn-outline-light mt-3">View Reports</a>
                             </div>
                         </div>
