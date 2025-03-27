@@ -78,7 +78,7 @@
                 </div>
                 
                 <div id="manual-attendance">
-                    <form action="{{ url_for('mark_attendance') }}" method="POST">
+                    <form id="attendance-form" action="{{ url_for('mark_attendance') }}" method="POST">
                         <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
                         
                         <div class="table-responsive">
@@ -384,22 +384,31 @@
             // Add or update hidden field with timestamp
             const studentRow = document.querySelector(`input[name="student_id"][value="${studentId}"]`).closest('tr');
             if (studentRow) {
+                // Format time in 24-hour format for backend
+                const hours24 = now.getHours().toString().padStart(2, '0');
+                const timeValue = `${hours24}:${minutes}:${seconds}`;
+                
                 // Remove any existing timestamp field
                 const existingField = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
                 if (existingField) {
-                    existingField.remove();
+                    existingField.value = timeValue; // Update existing field
+                } else {
+                    // Add new timestamp field
+                    const timeField = document.createElement('input');
+                    timeField.type = 'hidden';
+                    timeField.name = `time_in-${studentId}`;
+                    timeField.value = timeValue;
+                    
+                    // Add it to the form
+                    const form = document.getElementById('attendance-form');
+                    form.appendChild(timeField);
                 }
                 
-                // Add new timestamp field
-                const timeField = document.createElement('input');
-                timeField.type = 'hidden';
-                timeField.name = `time_in-${studentId}`;
-                // Format time in 24-hour format for backend
-                const hours24 = now.getHours().toString().padStart(2, '0');
-                timeField.value = `${hours24}:${minutes}:${seconds}`;
-                
-                // Add it to the form
-                studentRow.querySelector('td:nth-child(3)').appendChild(timeField);
+                // Also update the select element to "Present"
+                const statusSelect = document.getElementById(`status-${studentId}`);
+                if (statusSelect) {
+                    statusSelect.value = 'Present';
+                }
             }
             
             // Show notification

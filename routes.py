@@ -236,6 +236,11 @@ def mark_attendance():
     except ValueError:
         date = get_current_datetime().date()
     
+    # First collect all existing attendance records to preserve time_in values
+    existing_attendance = {}
+    for attendance in Attendance.query.filter_by(date=date).all():
+        existing_attendance[str(attendance.student_id)] = attendance.time_in
+    
     # Delete existing attendance records for this date
     Attendance.query.filter_by(date=date).delete()
     
@@ -249,8 +254,9 @@ def mark_attendance():
             
             # If the student is marked as present or late, we need a time
             if status in ['Present', 'Late']:
-                # Check if we have a custom timestamp from the form (set by face recognition)
+                # First check if we have a custom timestamp from the form specifically for this student
                 time_field_name = f'time_in-{student_id}'
+                
                 if time_field_name in request.form and request.form[time_field_name]:
                     # Parse the timestamp from the form (format: "HH:MM:SS")
                     try:
@@ -258,10 +264,17 @@ def mark_attendance():
                         hours, minutes, seconds = map(int, time_str.split(':'))
                         time_in = datetime.time(hours, minutes, seconds)
                     except (ValueError, TypeError):
-                        # If parsing fails, use current time
-                        time_in = get_current_datetime().time()
+                        # If parsing fails, check if we had a previous record
+                        if student_id in existing_attendance:
+                            time_in = existing_attendance[student_id]
+                        else:
+                            # Last resort: use current time
+                            time_in = get_current_datetime().time()
+                # Check if there was a previous record for this student today
+                elif student_id in existing_attendance:
+                    time_in = existing_attendance[student_id]
                 else:
-                    # No custom time, use current time
+                    # No custom time or previous record, use current time
                     time_in = get_current_datetime().time()
             
             # Always create an attendance record so we can track absence explicitly
