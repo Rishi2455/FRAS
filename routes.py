@@ -3,7 +3,7 @@ import csv
 import base64
 import uuid
 from io import StringIO
-from datetime import datetime, timedelta
+from datetime import timedelta, datetime
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response
 from sqlalchemy import func
@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 
 from app import app, db
 from models import Student, Attendance
+from utils import get_current_datetime, format_date, format_time, parse_date, KOLKATA_TZ, localize_datetime
 
 # Configure upload folder
 app.config['UPLOAD_FOLDER'] = 'student_images'
@@ -205,10 +206,10 @@ def delete_student(id):
 # Attendance routes
 @app.route('/attendance')
 def attendance():
-    today = datetime.now().date()
-    date_str = request.args.get('date', today.strftime('%Y-%m-%d'))
+    today = get_current_datetime().date()
+    date_str = request.args.get('date', format_date(today))
     try:
-        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        selected_date = parse_date(date_str).date()
     except ValueError:
         selected_date = today
     
@@ -231,9 +232,9 @@ def mark_attendance():
     statuses = request.form.getlist('status')
     
     try:
-        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        date = parse_date(date_str).date()
     except ValueError:
-        date = datetime.now().date()
+        date = get_current_datetime().date()
     
     # Delete existing attendance records for this date
     Attendance.query.filter_by(date=date).delete()
@@ -246,7 +247,7 @@ def mark_attendance():
             # If the student is marked as absent, we don't add a time_in
             time_in = None
             if status in ['Present', 'Late']:
-                time_in = datetime.now().time()
+                time_in = get_current_datetime().time()
             
             # Always create an attendance record so we can track absence explicitly
             attendance = Attendance(
@@ -296,8 +297,8 @@ def api_student_attendance():
         return jsonify({"error": "Missing required parameters"}), 400
     
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        start_date = parse_date(start_date_str).date()
+        end_date = parse_date(end_date_str).date()
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
     
@@ -316,9 +317,9 @@ def api_student_attendance():
     records = []
     for record in attendance_records:
         records.append({
-            "date": record.date.strftime('%Y-%m-%d'),
+            "date": format_date(record.date),
             "status": record.status,
-            "time_in": record.time_in.strftime('%H:%M:%S') if record.time_in else None
+            "time_in": format_time(record.time_in) if record.time_in else None
         })
     
     # Calculate summary stats
@@ -350,7 +351,7 @@ def api_date_attendance():
         return jsonify({"error": "Missing date parameter"}), 400
     
     try:
-        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        selected_date = parse_date(date_str).date()
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
     
@@ -369,7 +370,7 @@ def api_date_attendance():
             "name": student.name,
             "display_id": student.student_id,
             "status": attendance.status if attendance else "Absent",
-            "time_in": attendance.time_in.strftime('%H:%M:%S') if attendance and attendance.time_in else None
+            "time_in": format_time(attendance.time_in) if attendance and attendance.time_in else None
         })
     
     # Calculate summary stats
@@ -399,8 +400,8 @@ def export_attendance():
         export_format = request.form.get('format', 'csv')
         
         try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            start_date = parse_date(start_date_str).date()
+            end_date = parse_date(end_date_str).date()
         except (ValueError, TypeError):
             flash('Please enter valid dates', 'danger')
             return redirect(url_for('export_attendance'))
@@ -427,12 +428,12 @@ def export_attendance():
                 student = students.get(attendance.student_id)
                 if student:
                     writer.writerow([
-                        attendance.date.strftime('%Y-%m-%d'),
+                        format_date(attendance.date),
                         student.student_id,
                         student.name,
                         attendance.status,
-                        attendance.time_in.strftime('%H:%M:%S') if attendance.time_in else '',
-                        attendance.time_out.strftime('%H:%M:%S') if attendance.time_out else '',
+                        format_time(attendance.time_in) if attendance.time_in else '',
+                        format_time(attendance.time_out) if attendance.time_out else '',
                         attendance.notes or ''
                     ])
             
@@ -449,7 +450,7 @@ def export_attendance():
             return redirect(url_for('export_attendance'))
     
     # Default dates: last 30 days
-    end_date = datetime.now().date()
+    end_date = get_current_datetime().date()
     start_date = end_date - timedelta(days=30)
     
     return render_template(
