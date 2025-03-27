@@ -140,13 +140,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function simulateRecognition() {
-        // Get all students from the attendance table
+        // Get all students from the attendance table that are not already marked as Present or Late
         const studentRows = document.querySelectorAll('table tbody tr');
         if (studentRows.length === 0) return;
         
-        // Select a random student
-        const randomIndex = Math.floor(Math.random() * studentRows.length);
-        const studentRow = studentRows[randomIndex];
+        // Filter students who are currently marked as Absent
+        const absentStudents = Array.from(studentRows).filter(row => {
+            const statusSelect = row.querySelector('select');
+            return statusSelect && statusSelect.value === 'Absent';
+        });
+        
+        // If no absent students, return
+        if (absentStudents.length === 0) {
+            if (recognitionStatus) {
+                recognitionStatus.textContent = 'All students already marked. No more faces to recognize.';
+            }
+            return;
+        }
+        
+        // Select a random absent student
+        const randomIndex = Math.floor(Math.random() * absentStudents.length);
+        const studentRow = absentStudents[randomIndex];
         
         // Get student info
         const studentId = studentRow.querySelector('input[name="student_id"]').value;
@@ -160,7 +174,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const updatedCell = document.getElementById(`updated-${studentId}`);
         if (updatedCell) {
             const now = new Date();
-            const timeString = now.toTimeString().split(' ')[0];
+            // Format time in 12-hour format with AM/PM
+            const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+            const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
             updatedCell.innerHTML = `<div class="badge bg-success rounded-pill"><i class="fas fa-clock me-1"></i>${timeString}</div>`;
         }
         
@@ -224,7 +243,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const studentName = studentRow.querySelector('td:nth-child(2)').textContent;
         const now = new Date();
-        const timeString = now.toTimeString().split(' ')[0];
+        
+        // Format time in 12-hour format with AM/PM
+        const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const seconds = now.getSeconds().toString().padStart(2, '0');
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+        const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
         
         // Create activity log entry
         const logContainer = document.getElementById('activity-log');

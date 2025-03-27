@@ -101,7 +101,7 @@
                                                 <select name="status" class="form-select shadow-sm" id="status-{{ student.id }}">
                                                     <option value="Present" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Present' }}>Present</option>
                                                     <option value="Late" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Late' }}>Late</option>
-                                                    <option value="Absent" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Absent' else 'selected' if not attendances.get(student.id) }}>Absent</option>
+                                                    <option value="Absent" {{ 'selected' if (attendances.get(student.id) and attendances[student.id].status == 'Absent') or not attendances.get(student.id) }}>Absent</option>
                                                 </select>
                                             </td>
                                             <td id="updated-{{ student.id }}" class="fw-bold">
