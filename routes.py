@@ -251,8 +251,13 @@ def attendance():
                           selected_date=selected_date)
 
 
-@app.route('/attendance/mark', methods=['POST'])
+@app.route('/attendance/mark', methods=['GET', 'POST'])
 def mark_attendance():
+    # For GET requests, redirect to the attendance page
+    if request.method == 'GET':
+        return redirect(url_for('attendance'))
+        
+    # For POST requests, process the attendance data
     date_str = request.form.get('date')
     student_ids = request.form.getlist('student_id')
     statuses = request.form.getlist('status')

@@ -22,7 +22,7 @@ class Attendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     date = db.Column(db.Date, nullable=False, default=lambda: get_current_datetime().date())
-    time_in = db.Column(db.Time, nullable=False, default=lambda: get_current_datetime().time())
+    time_in = db.Column(db.Time, nullable=True)  # Changed to nullable=True to allow Absent status 
     time_out = db.Column(db.Time, nullable=True)
     status = db.Column(db.String(20), default="Present")  # Present, Late, Absent
     notes = db.Column(db.Text, nullable=True)
