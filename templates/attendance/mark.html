@@ -64,7 +64,6 @@
                     <div class="col-md-12">
                         <div class="camera-container mb-3">
                             <video id="webcam" class="camera-feed" autoplay playsinline></video>
-                            <div id="face-boxes"></div>
                         </div>
                         <div class="text-center mt-3">
                             <div class="d-inline-flex align-items-center py-2 px-4 rounded-pill bg-dark bg-opacity-10">
@@ -78,7 +77,7 @@
                 </div>
                 
                 <div id="manual-attendance">
-                    <form action="{{ url_for('mark_attendance') }}" method="POST">
+                    <form id="attendance-form" action="{{ url_for('mark_attendance') }}" method="POST">
                         <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
                         
                         <div class="table-responsive">
@@ -98,17 +97,20 @@
                                             <td>{{ student.name }}</td>
                                             <td>
                                                 <input type="hidden" name="student_id" value="{{ student.id }}">
+                                                {% if attendances.get(student.id) and attendances[student.id].time_in %}
+                                                    <input type="hidden" name="time_in-{{ student.id }}" value="{{ attendances[student.id].time_in }}">
+                                                {% endif %}
                                                 <select name="status" class="form-select shadow-sm" id="status-{{ student.id }}">
                                                     <option value="Present" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Present' }}>Present</option>
                                                     <option value="Late" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Late' }}>Late</option>
-                                                    <option value="Absent" {{ 'selected' if attendances.get(student.id) and attendances[student.id].status == 'Absent' else 'selected' if not attendances.get(student.id) }}>Absent</option>
+                                                    <option value="Absent" {{ 'selected' if (attendances.get(student.id) and attendances[student.id].status == 'Absent') or not attendances.get(student.id) }}>Absent</option>
                                                 </select>
                                             </td>
                                             <td id="updated-{{ student.id }}" class="fw-bold">
                                                 {% if attendances.get(student.id) and attendances[student.id].time_in %}
                                                     <div class="badge bg-success rounded-pill">
                                                         <i class="fas fa-clock me-1"></i>
-                                                        {{ attendances[student.id].time_in.strftime('%H:%M:%S') }}
+                                                        {{ attendances[student.id].time_in.strftime('%I:%M:%S %p') }}
                                                     </div>
                                                 {% else %}
                                                     <span class="text-muted">Not marked</span>
@@ -193,7 +195,7 @@
                             <div class="list-group-item list-group-item-action border-0">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1 fw-bold">{{ students|selectattr('id', 'equalto', attendance.student_id)|map(attribute='name')|first }}</h6>
-                                    <small class="text-muted">{{ attendance.time_in.strftime('%H:%M:%S') }}</small>
+                                    <small class="text-muted">{{ attendance.time_in.strftime('%I:%M:%S %p') }}</small>
                                 </div>
                                 <p class="mb-1">Marked as 
                                     <span class="status-badge 
@@ -307,70 +309,140 @@
         function simulateFaceRecognition() {
             if (!stream) return;
             
-            // Choose a random student for demonstration
-            const studentIds = Array.from(document.querySelectorAll('select[name="status"]')).map(el => el.id.split('-')[1]);
+            // No face box needed - it caused positioning issues
+            // Update status to show detection
+            if (recognitionStatus) {
+                recognitionStatus.textContent = "Face detected! Processing...";
+            }
             
-            if (studentIds.length > 0) {
-                const randomIndex = Math.floor(Math.random() * studentIds.length);
-                const randomStudentId = studentIds[randomIndex];
+            // In a real face recognition system, the camera would detect and analyze
+            // the face automatically. For demo purposes, we'll simulate this process.
+            
+            // First, check if there are any students who haven't been marked yet
+            const studentRows = document.querySelectorAll('table tbody tr');
+            const absentStudents = Array.from(studentRows).filter(row => {
+                const statusSelect = row.querySelector('select[name="status"]');
+                return statusSelect && statusSelect.value === 'Absent';
+            });
+            
+            if (absentStudents.length === 0) {
+                // All students are already marked
+                recognitionStatus.textContent = "All students already marked. No more faces to recognize.";
+                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 5000);
+                return;
+            }
+            
+            // Simulate analyzing for 1-2 seconds
+            recognitionStatus.textContent = "Analyzing face features...";
+            
+            // For a more realistic simulation, occasionally show "Face not recognized" or "No match found"
+            const recognitionSuccess = Math.random() > 0.2; // 80% success rate
+            
+            setTimeout(() => {
+                if (!recognitionSuccess) {
+                    // Simulate a failed recognition
+                    recognitionStatus.textContent = "Face detected but not recognized. Trying again...";
+                    
+                    // Try again after a short delay
+                    window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 3000);
+                    return;
+                }
                 
-                // Draw a face box
-                drawFaceBox();
+                // Simulating face recognition more accurately
+                // In a real system, we would only mark the actual detected person
+                // For this demo, let's use fixed logic instead of random marking
                 
-                // Update recognition status
-                const studentName = document.querySelector(`tr:has(#status-${randomStudentId})`).children[1].textContent;
-                recognitionStatus.textContent = `Face recognized: ${studentName}`;
+                // FIXED: Instead of marking a random student (which caused problems),
+                // we will mark the first absent student in the list so it's predictable
+                const studentToMark = absentStudents[0];
+                
+                // Get the student information
+                const studentId = studentToMark.querySelector('input[name="student_id"]').value;
+                const studentName = studentToMark.querySelector('td:nth-child(2)').textContent.trim();
                 
                 // Mark as present
-                const statusSelect = document.getElementById(`status-${randomStudentId}`);
-                statusSelect.value = 'Present';
+                const statusSelect = document.getElementById(`status-${studentId}`);
+                if (statusSelect) {
+                    statusSelect.value = 'Present';
+                    
+                    // Update recognition status
+                    recognitionStatus.textContent = `Face recognized: ${studentName}`;
+                    
+                    // Update attendance status in UI 
+                    updateAttendanceUI(studentId, studentName);
+                }
                 
-                // Update timestamp
-                const now = new Date();
-                const timeStr = now.toTimeString().split(' ')[0];
-                document.getElementById(`updated-${randomStudentId}`).textContent = timeStr;
-                
-                // Show notification
-                showNotification(studentName);
-                
-                // Update summary counts
-                updateSummaryCounts();
-                
-                // Add to activity log
-                addActivityLog(studentName, 'Present', timeStr);
-                
-                // Simulate next recognition after a delay - store timeout ID so it can be cancelled
-                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 5000 + Math.random() * 5000);
-            }
+                // Schedule next detection after a delay of 5-15 seconds
+                // This gives time to see the recognition before detecting the next face
+                const nextDetectionDelay = 5000 + Math.random() * 10000;
+                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, nextDetectionDelay);
+            }, 1000 + Math.random() * 1000); // Simulate processing time
         }
         
-        function drawFaceBox() {
-            const faceBoxesContainer = document.getElementById('face-boxes');
-            faceBoxesContainer.innerHTML = '';
+        function updateAttendanceUI(studentId, studentName) {
+            // Update timestamp
+            const now = new Date();
+            // Format time as 12-hour format with AM/PM
+            const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+            const timeStr = `${hours}:${minutes}:${seconds} ${ampm}`;
             
-            // Create a simulated face box
-            const faceBox = document.createElement('div');
-            faceBox.className = 'face-box';
+            // Update the UI with the formatted time
+            const timeElement = document.getElementById(`updated-${studentId}`);
+            if (timeElement) {
+                // Create or update badge with new time
+                const badge = document.createElement('div');
+                badge.className = 'badge bg-success rounded-pill';
+                badge.innerHTML = `<i class="fas fa-clock me-1"></i> ${timeStr}`;
+                
+                // Replace existing content with the new badge
+                timeElement.innerHTML = '';
+                timeElement.appendChild(badge);
+            }
             
-            // Random position within video
-            const videoWidth = video.clientWidth;
-            const videoHeight = video.clientHeight;
-            const boxWidth = 100 + Math.random() * 50;
-            const boxHeight = 130 + Math.random() * 50;
-            const left = 50 + Math.random() * (videoWidth - 200);
-            const top = 50 + Math.random() * (videoHeight - 200);
+            // Add or update hidden field with timestamp
+            const studentRow = document.querySelector(`input[name="student_id"][value="${studentId}"]`).closest('tr');
+            if (studentRow) {
+                // Format time in 24-hour format for backend
+                const hours24 = now.getHours().toString().padStart(2, '0');
+                const timeValue = `${hours24}:${minutes}:${seconds}`;
+                
+                // Remove any existing timestamp field
+                const existingField = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
+                if (existingField) {
+                    existingField.value = timeValue; // Update existing field
+                } else {
+                    // Add new timestamp field
+                    const timeField = document.createElement('input');
+                    timeField.type = 'hidden';
+                    timeField.name = `time_in-${studentId}`;
+                    timeField.value = timeValue;
+                    
+                    // Add it to the form
+                    const form = document.getElementById('attendance-form');
+                    form.appendChild(timeField);
+                }
+                
+                // Also update the select element to "Present"
+                const statusSelect = document.getElementById(`status-${studentId}`);
+                if (statusSelect) {
+                    statusSelect.value = 'Present';
+                }
+            }
             
-            faceBox.style.width = boxWidth + 'px';
-            faceBox.style.height = boxHeight + 'px';
-            faceBox.style.left = left + 'px';
-            faceBox.style.top = top + 'px';
+            // Show notification
+            showNotification(studentName);
             
-            faceBoxesContainer.appendChild(faceBox);
+            // Update summary counts
+            updateSummaryCounts();
             
-            // Animate the box briefly
-            setTimeout(() => faceBox.style.borderColor = '#ffc107', 100);
-            setTimeout(() => faceBox.style.borderColor = '#28a745', 500);
+            // Add to activity log
+            addActivityLog(studentName, 'Present', timeStr);
         }
+        
+        // Function removed - drawFaceBox was causing incorrect positioning
         
         function showNotification(studentName) {
             const notificationContainer = document.getElementById('attendance-notification');
