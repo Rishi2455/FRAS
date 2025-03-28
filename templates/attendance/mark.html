@@ -326,40 +326,51 @@
 
 
         function markFirstAbsentStudent() {
-            // Simulated face recognition - mark all absent students one by one
-            // In production, this would be replaced by actual face recognition API results
-            const studentRows = document.querySelectorAll('table tbody tr');
-            const absentStudents = Array.from(studentRows).filter(row => {
-                const statusSelect = row.querySelector('select[name="status"]');
-                return statusSelect && statusSelect.value === 'Absent';
-            });
+            // Capture current frame from video
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            if (absentStudents.length === 0) {
-                recognitionStatus.textContent = "All students already marked.";
-                return;
-            }
+            // Convert to base64
+            const imageData = canvas.toDataURL('image/jpeg');
             
-            // Randomly select 1-3 students to simulate multiple face detection
-            const numToMark = Math.min(Math.floor(Math.random() * 3) + 1, absentStudents.length);
-            const studentsToMark = absentStudents.slice(0, numToMark);
-            
-            // Mark each selected student as present
-            studentsToMark.forEach(studentRow => {
-                const studentId = studentRow.querySelector('input[name="student_id"]').value;
-                const studentName = studentRow.querySelector('td:nth-child(2)').textContent.trim();
-                const studentStatusSelect = document.getElementById(`status-${studentId}`);
-                
-                if (studentStatusSelect) {
-                    studentStatusSelect.value = 'Present';
-                    updateAttendanceUI(studentId, studentName);
+            // Send to backend for face recognition
+            fetch('/api/recognize_faces', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image: imageData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.recognized_students && data.recognized_students.length > 0) {
+                    // Mark recognized students as present
+                    data.recognized_students.forEach(student => {
+                        const studentStatusSelect = document.getElementById(`status-${student.id}`);
+                        if (studentStatusSelect && studentStatusSelect.value === 'Absent') {
+                            studentStatusSelect.value = 'Present';
+                            updateAttendanceUI(student.id, student.name);
+                        }
+                    });
+                    
+                    // Update recognition status
+                    const recognizedNames = data.recognized_students
+                        .map(student => student.name)
+                        .join(', ');
+                    recognitionStatus.textContent = `Faces recognized: ${recognizedNames}`;
+                } else {
+                    recognitionStatus.textContent = "No faces recognized";
                 }
+            })
+            .catch(error => {
+                console.error('Face recognition error:', error);
+                recognitionStatus.textContent = "Error processing faces";
             });
-
-            // Update recognition status with all recognized names
-            const recognizedNames = studentsToMark
-                .map(row => row.querySelector('td:nth-child(2)').textContent.trim())
-                .join(', ');
-            recognitionStatus.textContent = `Faces recognized: ${recognizedNames}`;
         }
 
         function updateAttendanceUI(studentId, studentName) {
