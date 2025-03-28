@@ -267,18 +267,20 @@ def mark_attendance():
     for attendance in Attendance.query.filter_by(date=date).all():
         existing_attendance[str(attendance.student_id)] = attendance.time_in
     
-    # Delete existing attendance records for this date
-    Attendance.query.filter_by(date=date).delete()
+    # Instead of deleting all records and recreating them, let's update them or create new ones
+    # This way we preserve the timestamps better
     
-    # Add new attendance records
     for i, student_id in enumerate(student_ids):
         if i < len(statuses):
             status = statuses[i]
             
+            # Check if an attendance record already exists for this student and date
+            attendance = Attendance.query.filter_by(student_id=student_id, date=date).first()
+            
             # Default time is None (for absent students)
             time_in = None
             
-            # If the student is marked as present or late, we need a time
+            # For present or late students, we need a time
             if status in ['Present', 'Late']:
                 # First check if we have a custom timestamp from the form specifically for this student
                 time_field_name = f'time_in-{student_id}'
@@ -299,18 +301,27 @@ def mark_attendance():
                 # Check if there was a previous record for this student today
                 elif student_id in existing_attendance:
                     time_in = existing_attendance[student_id]
-                else:
-                    # No custom time or previous record, use current time
+                # Only use current time for new Present/Late records, not for existing ones
+                elif not attendance: 
                     time_in = get_current_datetime().time()
             
-            # Always create an attendance record so we can track absence explicitly
-            attendance = Attendance(
-                student_id=student_id,
-                date=date,
-                time_in=time_in,
-                status=status
-            )
-            db.session.add(attendance)
+            # If a record exists, update it
+            if attendance:
+                attendance.status = status
+                # Only update time_in if it's a change from Absent to Present/Late
+                if status in ['Present', 'Late'] and time_in is not None:
+                    # Only update time_in if it was previously absent or None
+                    if attendance.time_in is None or attendance.status == 'Absent':
+                        attendance.time_in = time_in
+            else:
+                # Create a new attendance record
+                attendance = Attendance(
+                    student_id=student_id,
+                    date=date,
+                    time_in=time_in,
+                    status=status
+                )
+                db.session.add(attendance)
     
     db.session.commit()
     flash('Attendance marked successfully!', 'success')

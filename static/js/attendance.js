@@ -162,11 +162,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const randomIndex = Math.floor(Math.random() * absentStudents.length);
         const studentRow = absentStudents[randomIndex];
         
-        // Get student info
-        const studentId = studentRow.querySelector('input[name="student_id"]').value;
+        // Get student info - use the dataset-id attribute to get the correct ID
+        const studentIdInput = studentRow.querySelector('input[name="student_id"]');
+        if (!studentIdInput) return; // Safety check
+        
+        const studentId = studentIdInput.value;
         const studentName = studentRow.querySelector('td:nth-child(2)').textContent;
         
-        // Update status to "Present"
+        // Update status to "Present" for this specific student
         const statusSelect = studentRow.querySelector('select');
         statusSelect.value = 'Present';
         
@@ -183,9 +186,10 @@ document.addEventListener('DOMContentLoaded', function() {
             updatedCell.innerHTML = `<div class="badge bg-success rounded-pill"><i class="fas fa-clock me-1"></i>${timeString}</div>`;
             
             // Add a hidden field with the timestamp for the form submission
-            // We're already in the student row context, no need to query again
-            // Remove any existing timestamp field
-            const existingTimestamp = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
+            const timestampFieldName = `time_in-${studentId}`;
+            
+            // Remove any existing timestamp field first to avoid duplicates
+            let existingTimestamp = studentRow.querySelector(`input[name="${timestampFieldName}"]`);
             if (existingTimestamp) {
                 existingTimestamp.remove();
             }
@@ -193,12 +197,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Create a new timestamp field with the current time
             const timestampField = document.createElement('input');
             timestampField.type = 'hidden';
-            timestampField.name = `time_in-${studentId}`;
+            timestampField.name = timestampFieldName;
             timestampField.value = `${now.getHours().toString().padStart(2, '0')}:${minutes}:${seconds}`; // 24-hour format for backend
             
             // Add it to the row
-            studentRow.querySelector('td:nth-child(3)').appendChild(timestampField);
-            }
+            studentRow.appendChild(timestampField);
+        }
         }
         
         // Update attendance counters
