@@ -450,51 +450,10 @@ def api_student_attendance():
 
 @app.route('/api/recognize_faces', methods=['POST'])
 def recognize_faces():
-    """API endpoint to recognize faces from webcam image"""
-    if not request.is_json:
-        return jsonify({"error": "Missing JSON data"}), 400
-        
-    # Get base64 image from request
-    image_data = request.json.get('image')
-    if not image_data:
-        return jsonify({"error": "Missing image data"}), 400
-        
-    try:
-        # Remove data URL prefix if present
-        if 'base64,' in image_data:
-            image_data = image_data.split('base64,')[1]
-            
-        # Decode base64 to bytes
-        image_bytes = base64.b64decode(image_data)
-        
-        # Convert to numpy array
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        if frame is None:
-            return jsonify({"error": "Invalid image data"}), 400
-            
-        # Initialize face recognizer with database connection
-        face_recognizer = FaceRecognizer(db)
-        
-        # Recognize faces in the frame
-        recognized_students = face_recognizer.recognize_faces(frame)
-        
-        # Format response
-        students = []
-        for student_id, name in recognized_students:
-            students.append({
-                "id": student_id,
-                "name": name
-            })
-            
-        return jsonify({
-            "recognized_students": students
-        })
-        
-    except Exception as e:
-        print("Face recognition error:", str(e))
-        return jsonify({"error": "Failed to process image"}), 500
+    """Simplified API endpoint without face recognition"""
+    return jsonify({
+        "recognized_students": []
+    })
 
 @app.route('/api/date_attendance')
 def api_date_attendance():
