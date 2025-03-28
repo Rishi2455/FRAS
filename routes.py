@@ -80,7 +80,7 @@ def add_student():
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         name = request.form.get('name')
-        email = request.form.get('email')
+        email = request.form.get('email', '').strip()
 
         # Validate inputs
         if not student_id or not name:
@@ -91,13 +91,26 @@ def add_student():
         if Student.query.filter_by(student_id=student_id).first():
             flash('Student ID already exists!', 'danger')
             return redirect(url_for('add_student'))
-
+            
+        # Check if email exists and is not empty
+        if email:
+            # Check if email already exists
+            if Student.query.filter_by(email=email).first():
+                flash('Email address already exists!', 'danger')
+                return redirect(url_for('add_student'))
+        
+        # Create student data dictionary
+        student_data = {
+            'student_id': student_id,
+            'name': name
+        }
+        
+        # Only add email if it's not empty
+        if email:
+            student_data['email'] = email
+            
         # Create new student
-        new_student = Student(
-            student_id=student_id,
-            name=name,
-            email=email
-        )
+        new_student = Student(**student_data)
         
         # Handle image upload
         image_filename = None
@@ -138,7 +151,20 @@ def edit_student(id):
     if request.method == 'POST':
         student.student_id = request.form.get('student_id')
         student.name = request.form.get('name')
-        student.email = request.form.get('email')
+        email = request.form.get('email', '').strip()
+        
+        # Handle email updates with empty values
+        if email:
+            # Check if different from current and not used by another student
+            if email != student.email:
+                existing_student = Student.query.filter_by(email=email).first()
+                if existing_student and existing_student.id != student.id:
+                    flash('Email address already used by another student!', 'danger')
+                    return redirect(url_for('edit_student', id=id))
+            student.email = email
+        else:
+            # If email is empty, set to None to avoid unique constraint issues
+            student.email = None
         
         # Handle image upload
         image_filename = None
