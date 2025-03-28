@@ -27,10 +27,12 @@ class FaceRecognizer:
             # Detect faces using dlib's frontal face detector
             faces = self.face_detector(rgb_frame)
             
-            if len(faces) > 0:
-                # Return a dummy ID with "Face Detected" for each face found
-                return [(1, "Face Detected")]
-            return []
+            # Return a list of detected faces
+            detected_faces = []
+            for i, face in enumerate(faces):
+                detected_faces.append((i + 1, f"Face {i + 1} Detected"))
+            
+            return detected_faces
         except Exception as e:
             print(f"Error detecting faces: {e}")
             return []
