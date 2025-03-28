@@ -69,8 +69,8 @@ class FaceRecognizer:
         
         # Compare each face encoding to known encodings
         for face_encoding in self.face_encodings:
-            # Compare face encoding with all known face encodings with stricter tolerance
-            matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding, tolerance=0.4)
+            # Compare face encoding with all known face encodings with very strict tolerance
+            matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding, tolerance=0.35)
             
             # Calculate face distance (lower = more similar)
             face_distances = face_recognition.face_distance(self.known_face_encodings, face_encoding)
@@ -78,12 +78,23 @@ class FaceRecognizer:
             if len(face_distances) > 0:
                 # Get index of the closest matching face
                 best_match_index = np.argmin(face_distances)
+                best_distance = face_distances[best_match_index]
                 
-                # If there's a match and the confidence is very high (stricter threshold)
-                if matches[best_match_index] and face_distances[best_match_index] < 0.4:
-                    student_id = self.known_face_ids[best_match_index]
-                    name = self.known_face_names[best_match_index]
-                    recognized_students.append((student_id, name))
+                # Only accept if:
+                # 1. Face matches with strict tolerance (0.35)
+                # 2. Distance is very small (less than 0.35)
+                # 3. The next best match (if any) is significantly worse
+                if matches[best_match_index] and best_distance < 0.35:
+                    # Check if there's a second-best match that's too close
+                    other_distances = face_distances.copy()
+                    other_distances[best_match_index] = 1.0  # Exclude best match
+                    second_best = np.min(other_distances)
+                    
+                    # Only accept if the best match is significantly better than second best
+                    if second_best - best_distance > 0.1:
+                        student_id = self.known_face_ids[best_match_index]
+                        name = self.known_face_names[best_match_index]
+                        recognized_students.append((student_id, name))
         
         return recognized_students
     
