@@ -471,7 +471,7 @@ def recognize_faces():
         recognized = face_recognizer.recognize_faces(frame)
 
         if recognized:
-            # Get all absent students
+            # Get all absent students up to the number of faces detected
             absent_students = Student.query.join(Attendance).filter(
                 Attendance.date == datetime.now().date(),
                 Attendance.status == 'Absent'

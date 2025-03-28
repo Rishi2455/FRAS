@@ -1,3 +1,4 @@
+
 """Simple attendance marker with simplified face detection"""
 import os
 import cv2
@@ -17,7 +18,6 @@ class FaceRecognizer:
         if not os.path.exists('student_images'):
             os.makedirs('student_images')
 
-
     def recognize_faces(self, frame):
         """Detect faces in the frame"""
         try:
@@ -27,22 +27,13 @@ class FaceRecognizer:
             # Detect faces using dlib's frontal face detector
             faces = self.face_detector(rgb_frame)
             
-            # Return a list of detected faces
+            # Return face detections - one for each face found
             detected_faces = []
             for i, face in enumerate(faces):
-                detected_faces.append((i + 1, f"Face {i + 1} Detected"))
+                detected_faces.append((i + 1, "Face Detected"))
             
             return detected_faces
+            
         except Exception as e:
             print(f"Error detecting faces: {e}")
             return []
-
-    def encode_face(self, frame):
-        """Simplified face detection for enrollment"""
-        try:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = self.face_detector(gray)
-            return len(faces) > 0
-        except Exception as e:
-            print(f"Error encoding face: {e}")
-            return False
