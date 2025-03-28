@@ -4,8 +4,12 @@ Module for face detection and recognition using OpenCV and face_recognition libr
 import os
 import cv2
 import numpy as np
+import dlib
 import face_recognition
 from models import Student
+
+# Configure dlib's face detector
+face_detector = dlib.get_frontal_face_detector()
 
 class FaceRecognizer:
     def __init__(self, database):
