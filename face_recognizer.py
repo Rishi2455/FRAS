@@ -18,6 +18,10 @@ class FaceRecognizer:
         self.face_encodings = []
         self.face_names = []
         self.processed_frame = None
+        
+        # Ensure student_images directory exists
+        if not os.path.exists('student_images'):
+            os.makedirs('student_images')
 
         # Load known faces from database
         self.load_known_faces()
