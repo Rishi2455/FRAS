@@ -345,12 +345,12 @@
             // For demo, only mark the first student as present
             // In production, this would be based on actual face recognition
             const studentId = firstStudent.querySelector('input[name="student_id"]').value;
-            const studentName = studentRow.querySelector('td:nth-child(2)').textContent.trim();
+            const studentName = firstStudent.querySelector('td:nth-child(2)').textContent.trim();
 
             // Mark as present
-            const statusSelect = document.getElementById(`status-${studentId}`);
-            if (statusSelect) {
-                statusSelect.value = 'Present';
+            const studentStatusSelect = document.getElementById(`status-${studentId}`);
+            if (studentStatusSelect) {
+                studentStatusSelect.value = 'Present';
 
                 // Update recognition status
                 recognitionStatus.textContent = `Face recognized: ${studentName}`;
