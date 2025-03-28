@@ -183,22 +183,21 @@ document.addEventListener('DOMContentLoaded', function() {
             updatedCell.innerHTML = `<div class="badge bg-success rounded-pill"><i class="fas fa-clock me-1"></i>${timeString}</div>`;
             
             // Add a hidden field with the timestamp for the form submission
-            const studentRow = document.querySelector(`tr:has(input[name="student_id"][value="${studentId}"])`);
-            if (studentRow) {
-                // Remove any existing timestamp field
-                const existingTimestamp = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
-                if (existingTimestamp) {
-                    existingTimestamp.remove();
-                }
-                
-                // Create a new timestamp field with the current time
-                const timestampField = document.createElement('input');
-                timestampField.type = 'hidden';
-                timestampField.name = `time_in-${studentId}`;
-                timestampField.value = `${now.getHours().toString().padStart(2, '0')}:${minutes}:${seconds}`; // 24-hour format for backend
-                
-                // Add it to the row
-                studentRow.querySelector('td:nth-child(3)').appendChild(timestampField);
+            // We're already in the student row context, no need to query again
+            // Remove any existing timestamp field
+            const existingTimestamp = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
+            if (existingTimestamp) {
+                existingTimestamp.remove();
+            }
+            
+            // Create a new timestamp field with the current time
+            const timestampField = document.createElement('input');
+            timestampField.type = 'hidden';
+            timestampField.name = `time_in-${studentId}`;
+            timestampField.value = `${now.getHours().toString().padStart(2, '0')}:${minutes}:${seconds}`; // 24-hour format for backend
+            
+            // Add it to the row
+            studentRow.querySelector('td:nth-child(3)').appendChild(timestampField);
             }
         }
         
@@ -207,6 +206,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show notification
         showNotification('success', `Attendance marked for ${studentName}`);
+        
+        // Add to activity log for this specific student
+        addToActivityLog(studentRow);
         
         // Reset recognition status
         if (recognitionStatus) {
@@ -252,8 +254,9 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('absent-bar').style.width = `${(absentCount / totalCount * 100)}%`;
         }
         
-        // Add to activity log
-        addToActivityLog(rows[presentCount - 1]);
+        // Add to activity log with the correct student row
+        // Get the student row that was just marked present (should be studentRow from simulateRecognition)
+        // We don't need to grab a different one here
     }
     
     function addToActivityLog(studentRow) {
