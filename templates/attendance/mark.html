@@ -326,7 +326,8 @@
 
 
         function markFirstAbsentStudent() {
-            // First, check if there are any students who haven't been marked yet
+            // Simulated single face recognition - only mark one student at a time
+            // In a real system, this would be replaced by actual face recognition results
             const studentRows = document.querySelectorAll('table tbody tr');
             const absentStudents = Array.from(studentRows).filter(row => {
                 const statusSelect = row.querySelector('select[name="status"]');
@@ -339,8 +340,17 @@
                 return;
             }
 
-            // Always select the first absent student (would be the recognized face in real system)
-            const studentRow = absentStudents[0];
+            // Simulate recognizing only one random student for demo
+            // This prevents marking all students present automatically
+            const randomIndex = Math.floor(Math.random() * absentStudents.length);
+            const studentRow = absentStudents[randomIndex];
+            
+            // Add artificial delay and only 30% chance of recognition
+            // This makes the simulation more realistic
+            if (Math.random() > 0.7) {
+                recognitionStatus.textContent = "Processing... No match found.";
+                return;
+            }
 
             // Get the student information
             const studentId = studentRow.querySelector('input[name="student_id"]').value;
