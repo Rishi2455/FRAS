@@ -35,7 +35,7 @@
                         </form>
                     </div>
                 </div>
-                
+
                 <div class="row mb-4">
                     <div class="col-md-12">
                         <div class="alert alert-info border-0 shadow-sm">
@@ -59,7 +59,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="camera-container" class="row mb-4 d-none">
                     <div class="col-md-12">
                         <div class="camera-container mb-3">
@@ -75,11 +75,11 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="manual-attendance">
                     <form id="attendance-form" action="{{ url_for('mark_attendance') }}" method="POST">
                         <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
-                        
+
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
@@ -121,7 +121,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        
+
                         <div class="d-flex justify-content-between mt-4">
                             <a href="{{ url_for('index') }}" class="btn btn-secondary btn-lg">
                                 <i class="fas fa-arrow-left me-2"></i> Back
@@ -135,7 +135,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-4">
         <div class="card animated-card border-0 mb-4">
             <div class="card-header bg-dark text-white">
@@ -162,7 +162,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="progress mb-3" style="height: 10px;">
                     <div class="progress-bar bg-success" role="progressbar" id="present-bar" 
                          style="width: {{ (attendances.values()|selectattr('status', 'equalto', 'Present')|list|length / students|length * 100)|round|int if students else 0 }}%" 
@@ -183,9 +183,9 @@
                          aria-valuemax="{{ students|length }}">
                     </div>
                 </div>
-                
+
                 <hr>
-                
+
                 <div class="attendance-log mt-4">
                     <h5 class="d-flex align-items-center mb-3">
                         <i class="fas fa-history me-2"></i>Recent Activity
@@ -216,7 +216,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="card animated-card border-0">
             <div class="card-header bg-dark text-white">
                 <h3 class="card-title mb-0"><i class="fas fa-cog me-2"></i>Options</h3>
@@ -251,7 +251,7 @@
             const date = document.getElementById('date-select').value;
             window.location.href = "{{ url_for('attendance') }}?date=" + date;
         });
-        
+
         // Camera functionality (placeholder for face recognition)
         const startCameraBtn = document.getElementById('start-camera-btn');
         const stopCameraBtn = document.getElementById('stop-camera-btn');
@@ -259,24 +259,24 @@
         const video = document.getElementById('webcam');
         const recognitionStatus = document.getElementById('recognition-status');
         let stream = null;
-        
+
         startCameraBtn.addEventListener('click', function() {
             // Start camera
             cameraContainer.classList.remove('d-none');
             startCameraBtn.classList.add('d-none');
             stopCameraBtn.classList.remove('d-none');
-            
+
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(function(mediaStream) {
                     stream = mediaStream;
                     video.srcObject = mediaStream;
-                    
+
                     // Placeholder for face recognition
                     // In a real implementation, we would continuously analyze video frames
                     // and send them to a server for face recognition
-                    
+
                     // For demo purposes, let's simulate face recognition
-                    window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 3000);
+                    window.faceRecognitionTimeout = setInterval(detectFace, 3000); // Check every 3 seconds
                 })
                 .catch(function(error) {
                     console.error('Error accessing webcam:', error);
@@ -284,9 +284,9 @@
                     stopCamera();
                 });
         });
-        
+
         stopCameraBtn.addEventListener('click', stopCamera);
-        
+
         function stopCamera() {
             // Stop camera
             if (stream) {
@@ -297,88 +297,68 @@
             startCameraBtn.classList.remove('d-none');
             stopCameraBtn.classList.add('d-none');
             recognitionStatus.textContent = "Waiting for face detection...";
-            
+
             // Clear any scheduled face recognition simulations
             if (window.faceRecognitionTimeout) {
-                clearTimeout(window.faceRecognitionTimeout);
+                clearInterval(window.faceRecognitionTimeout);
                 window.faceRecognitionTimeout = null;
             }
         }
-        
+
         // Simulate face recognition for demo purposes
-        function simulateFaceRecognition() {
-            if (!stream) return;
-            
-            // No face box needed - it caused positioning issues
-            // Update status to show detection
+        function detectFace() {
+            if (!stream) return; // Don't detect if camera is off
+
             if (recognitionStatus) {
-                recognitionStatus.textContent = "Face detected! Processing...";
+                recognitionStatus.textContent = 'Face detected! Identifying...';
             }
-            
-            // In a real face recognition system, the camera would detect and analyze
-            // the face automatically. For demo purposes, we'll simulate this process.
-            
+
+
+            setTimeout(function() {
+                if (recognitionStatus) {
+                    recognitionStatus.textContent = 'Processing face features...';
+                }
+
+                markFirstAbsentStudent();
+
+            }, 1500);
+        }
+
+
+        function markFirstAbsentStudent() {
             // First, check if there are any students who haven't been marked yet
             const studentRows = document.querySelectorAll('table tbody tr');
             const absentStudents = Array.from(studentRows).filter(row => {
                 const statusSelect = row.querySelector('select[name="status"]');
                 return statusSelect && statusSelect.value === 'Absent';
             });
-            
+
             if (absentStudents.length === 0) {
                 // All students are already marked
                 recognitionStatus.textContent = "All students already marked. No more faces to recognize.";
-                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 5000);
                 return;
             }
-            
-            // Simulate analyzing for 1-2 seconds
-            recognitionStatus.textContent = "Analyzing face features...";
-            
-            // For a more realistic simulation, occasionally show "Face not recognized" or "No match found"
-            const recognitionSuccess = Math.random() > 0.2; // 80% success rate
-            
-            setTimeout(() => {
-                if (!recognitionSuccess) {
-                    // Simulate a failed recognition
-                    recognitionStatus.textContent = "Face detected but not recognized. Trying again...";
-                    
-                    // Try again after a short delay
-                    window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 3000);
-                    return;
-                }
-                
-                // Simulating face recognition more accurately
-                // In a real system, we would only mark the actual detected person
-                // For this demo, let's use fixed logic instead of random marking
-                
-                // FIXED: Instead of marking a random student (which caused problems),
-                // we will mark the first absent student in the list so it's predictable
-                const studentToMark = absentStudents[0];
-                
-                // Get the student information
-                const studentId = studentToMark.querySelector('input[name="student_id"]').value;
-                const studentName = studentToMark.querySelector('td:nth-child(2)').textContent.trim();
-                
-                // Mark as present
-                const statusSelect = document.getElementById(`status-${studentId}`);
-                if (statusSelect) {
-                    statusSelect.value = 'Present';
-                    
-                    // Update recognition status
-                    recognitionStatus.textContent = `Face recognized: ${studentName}`;
-                    
-                    // Update attendance status in UI 
-                    updateAttendanceUI(studentId, studentName);
-                }
-                
-                // Schedule next detection after a delay of 5-15 seconds
-                // This gives time to see the recognition before detecting the next face
-                const nextDetectionDelay = 5000 + Math.random() * 10000;
-                window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, nextDetectionDelay);
-            }, 1000 + Math.random() * 1000); // Simulate processing time
+
+            // Always select the first absent student (would be the recognized face in real system)
+            const studentRow = absentStudents[0];
+
+            // Get the student information
+            const studentId = studentRow.querySelector('input[name="student_id"]').value;
+            const studentName = studentRow.querySelector('td:nth-child(2)').textContent.trim();
+
+            // Mark as present
+            const statusSelect = document.getElementById(`status-${studentId}`);
+            if (statusSelect) {
+                statusSelect.value = 'Present';
+
+                // Update recognition status
+                recognitionStatus.textContent = `Face recognized: ${studentName}`;
+
+                // Update attendance status in UI 
+                updateAttendanceUI(studentId, studentName);
+            }
         }
-        
+
         function updateAttendanceUI(studentId, studentName) {
             // Update timestamp
             const now = new Date();
@@ -388,7 +368,7 @@
             const seconds = now.getSeconds().toString().padStart(2, '0');
             const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
             const timeStr = `${hours}:${minutes}:${seconds} ${ampm}`;
-            
+
             // Update the UI with the formatted time
             const timeElement = document.getElementById(`updated-${studentId}`);
             if (timeElement) {
@@ -396,19 +376,19 @@
                 const badge = document.createElement('div');
                 badge.className = 'badge bg-success rounded-pill';
                 badge.innerHTML = `<i class="fas fa-clock me-1"></i> ${timeStr}`;
-                
+
                 // Replace existing content with the new badge
                 timeElement.innerHTML = '';
                 timeElement.appendChild(badge);
             }
-            
+
             // Add or update hidden field with timestamp
             const studentRow = document.querySelector(`input[name="student_id"][value="${studentId}"]`).closest('tr');
             if (studentRow) {
                 // Format time in 24-hour format for backend
                 const hours24 = now.getHours().toString().padStart(2, '0');
                 const timeValue = `${hours24}:${minutes}:${seconds}`;
-                
+
                 // Remove any existing timestamp field
                 const existingField = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
                 if (existingField) {
@@ -419,41 +399,40 @@
                     timeField.type = 'hidden';
                     timeField.name = `time_in-${studentId}`;
                     timeField.value = timeValue;
-                    
+
                     // Add it to the form
                     const form = document.getElementById('attendance-form');
                     form.appendChild(timeField);
                 }
-                
+
                 // Also update the select element to "Present"
                 const statusSelect = document.getElementById(`status-${studentId}`);
                 if (statusSelect) {
                     statusSelect.value = 'Present';
                 }
             }
-            
+
             // Show notification
             showNotification(studentName);
-            
+
             // Update summary counts
             updateSummaryCounts();
-            
+
             // Add to activity log
             addActivityLog(studentName, 'Present', timeStr);
         }
-        
-        // Function removed - drawFaceBox was causing incorrect positioning
-        
+
+
         function showNotification(studentName) {
             const notificationContainer = document.getElementById('attendance-notification');
-            
+
             // Create toast notification
             const toastElement = document.createElement('div');
             toastElement.className = 'toast';
             toastElement.setAttribute('role', 'alert');
             toastElement.setAttribute('aria-live', 'assertive');
             toastElement.setAttribute('aria-atomic', 'true');
-            
+
             toastElement.innerHTML = `
                 <div class="toast-header bg-success text-white">
                     <i class="fas fa-check-circle me-2"></i>
@@ -465,42 +444,42 @@
                     <strong>${studentName}</strong> has been marked present.
                 </div>
             `;
-            
+
             notificationContainer.appendChild(toastElement);
-            
+
             // Initialize and show the toast
             const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 3000 });
             toast.show();
-            
+
             // Remove from DOM after hiding
             toastElement.addEventListener('hidden.bs.toast', function() {
                 notificationContainer.removeChild(toastElement);
             });
         }
-        
+
         function updateSummaryCounts() {
             // Count statuses
             const statuses = Array.from(document.querySelectorAll('select[name="status"]')).map(el => el.value);
             const presentCount = statuses.filter(s => s === 'Present').length;
             const lateCount = statuses.filter(s => s === 'Late').length;
             const absentCount = statuses.filter(s => s === 'Absent').length;
-            
+
             // Update UI
             document.getElementById('present-count').textContent = presentCount;
             document.getElementById('late-count').textContent = lateCount;
             document.getElementById('absent-count').textContent = absentCount;
         }
-        
+
         function addActivityLog(studentName, status, time) {
             const activityLog = document.getElementById('activity-log');
-            
+
             // Create new log entry
             const logEntry = document.createElement('div');
             logEntry.className = 'list-group-item list-group-item-action';
-            
+
             const statusClass = status === 'Present' ? 'text-success' : 
                                status === 'Late' ? 'text-warning' : 'text-danger';
-            
+
             logEntry.innerHTML = `
                 <div class="d-flex w-100 justify-content-between">
                     <h6 class="mb-1">${studentName}</h6>
@@ -508,14 +487,14 @@
                 </div>
                 <p class="mb-1">Marked as <span class="${statusClass}">${status}</span></p>
             `;
-            
+
             // Add to top of log
             if (activityLog.firstChild) {
                 activityLog.insertBefore(logEntry, activityLog.firstChild);
             } else {
                 activityLog.appendChild(logEntry);
             }
-            
+
             // Remove "No attendance records" message if it exists
             const emptyMessage = activityLog.querySelector('.list-group-item:not(.list-group-item-action)');
             if (emptyMessage) {
