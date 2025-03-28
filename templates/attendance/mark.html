@@ -64,7 +64,6 @@
                     <div class="col-md-12">
                         <div class="camera-container mb-3">
                             <video id="webcam" class="camera-feed" autoplay playsinline></video>
-                            <div id="face-boxes"></div>
                         </div>
                         <div class="text-center mt-3">
                             <div class="d-inline-flex align-items-center py-2 px-4 rounded-pill bg-dark bg-opacity-10">
@@ -310,8 +309,11 @@
         function simulateFaceRecognition() {
             if (!stream) return;
             
-            // Draw a face box to show detection is working
-            drawFaceBox();
+            // No face box needed - it caused positioning issues
+            // Update status to show detection
+            if (recognitionStatus) {
+                recognitionStatus.textContent = "Face detected! Processing...";
+            }
             
             // In a real face recognition system, the camera would detect and analyze
             // the face automatically. For demo purposes, we'll simulate this process.
@@ -346,9 +348,13 @@
                     return;
                 }
                 
-                // Select a random student from the absent list for more realistic recognition
-                const randomIndex = Math.floor(Math.random() * absentStudents.length);
-                const studentToMark = absentStudents[randomIndex];
+                // Simulating face recognition more accurately
+                // In a real system, we would only mark the actual detected person
+                // For this demo, let's use fixed logic instead of random marking
+                
+                // FIXED: Instead of marking a random student (which caused problems),
+                // we will mark the first absent student in the list so it's predictable
+                const studentToMark = absentStudents[0];
                 
                 // Get the student information
                 const studentId = studentToMark.querySelector('input[name="student_id"]').value;
@@ -436,33 +442,7 @@
             addActivityLog(studentName, 'Present', timeStr);
         }
         
-        function drawFaceBox() {
-            const faceBoxesContainer = document.getElementById('face-boxes');
-            faceBoxesContainer.innerHTML = '';
-            
-            // Create a simulated face box
-            const faceBox = document.createElement('div');
-            faceBox.className = 'face-box';
-            
-            // Random position within video
-            const videoWidth = video.clientWidth;
-            const videoHeight = video.clientHeight;
-            const boxWidth = 100 + Math.random() * 50;
-            const boxHeight = 130 + Math.random() * 50;
-            const left = 50 + Math.random() * (videoWidth - 200);
-            const top = 50 + Math.random() * (videoHeight - 200);
-            
-            faceBox.style.width = boxWidth + 'px';
-            faceBox.style.height = boxHeight + 'px';
-            faceBox.style.left = left + 'px';
-            faceBox.style.top = top + 'px';
-            
-            faceBoxesContainer.appendChild(faceBox);
-            
-            // Animate the box briefly
-            setTimeout(() => faceBox.style.borderColor = '#ffc107', 100);
-            setTimeout(() => faceBox.style.borderColor = '#28a745', 500);
-        }
+        // Function removed - drawFaceBox was causing incorrect positioning
         
         function showNotification(studentName) {
             const notificationContainer = document.getElementById('attendance-notification');

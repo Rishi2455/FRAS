@@ -262,66 +262,99 @@ def mark_attendance():
     except ValueError:
         date = get_current_datetime().date()
     
-    # First collect all existing attendance records to preserve time_in values
-    existing_attendance = {}
-    for attendance in Attendance.query.filter_by(date=date).all():
-        existing_attendance[str(attendance.student_id)] = attendance.time_in
+    # Debug info
+    print(f"Processing attendance for date: {date}")
+    print(f"Number of students: {len(student_ids)}")
     
-    # Instead of deleting all records and recreating them, let's update them or create new ones
-    # This way we preserve the timestamps better
+    # Get all existing attendance records for this date to avoid completely overwriting them
+    existing_records = {}
+    for record in Attendance.query.filter_by(date=date).all():
+        existing_records[record.student_id] = record
     
+    # Process each student's attendance
     for i, student_id in enumerate(student_ids):
-        if i < len(statuses):
-            status = statuses[i]
+        student_id = int(student_id)  # Ensure integer type
+        if i >= len(statuses):
+            continue  # Skip if no status for this student
             
-            # Check if an attendance record already exists for this student and date
-            attendance = Attendance.query.filter_by(student_id=student_id, date=date).first()
+        status = statuses[i]
+        print(f"Processing student {student_id} with status {status}")
+        
+        # Try to find the timestamp field for this student
+        time_field_name = f'time_in-{student_id}'
+        has_custom_time = time_field_name in request.form and request.form[time_field_name]
+        
+        # Find if this student already has a record for today
+        record_exists = student_id in existing_records
+        
+        # CRUCIAL: Always get the existing time_in if available rather than creating a new one
+        if record_exists:
+            record = existing_records[student_id]
+            old_status = record.status
+            old_time_in = record.time_in
+            print(f"Existing record found for student {student_id}: status={old_status}, time_in={old_time_in}")
             
-            # Default time is None (for absent students)
-            time_in = None
+            # Update the status always
+            record.status = status
             
-            # For present or late students, we need a time
+            # Handle time_in field - only update in specific cases
             if status in ['Present', 'Late']:
-                # First check if we have a custom timestamp from the form specifically for this student
-                time_field_name = f'time_in-{student_id}'
-                
-                if time_field_name in request.form and request.form[time_field_name]:
-                    # Parse the timestamp from the form (format: "HH:MM:SS")
+                # Case 1: A custom time was provided in the form
+                if has_custom_time:
                     try:
                         time_str = request.form[time_field_name]
+                        print(f"Custom time provided for student {student_id}: {time_str}")
+                        hours, minutes, seconds = map(int, time_str.split(':'))
+                        record.time_in = datetime.time(hours, minutes, seconds)
+                    except (ValueError, TypeError) as e:
+                        print(f"Error parsing time: {e}")
+                        # Keep the existing time_in if there was one
+                        if old_time_in is None:
+                            record.time_in = get_current_datetime().time()
+                
+                # Case 2: Student is newly marked Present/Late and had no time before
+                elif old_status == 'Absent' or old_time_in is None:
+                    record.time_in = get_current_datetime().time()
+                    print(f"Updated time for newly present student {student_id}")
+                
+                # Case 3: Already had a time, keep it
+                # No action needed, the existing time_in is preserved
+            
+            # If the status changed to Absent, we might want to clear time_in
+            elif status == 'Absent' and old_status in ['Present', 'Late']:
+                record.time_in = None
+                print(f"Cleared time for newly absent student {student_id}")
+                
+        else:
+            # Create a new record
+            time_in = None
+            
+            # For Present/Late students we need a time
+            if status in ['Present', 'Late']:
+                # If a custom time was provided in the form, use it
+                if has_custom_time:
+                    try:
+                        time_str = request.form[time_field_name]
+                        print(f"New record with custom time for student {student_id}: {time_str}")
                         hours, minutes, seconds = map(int, time_str.split(':'))
                         time_in = datetime.time(hours, minutes, seconds)
-                    except (ValueError, TypeError):
-                        # If parsing fails, check if we had a previous record
-                        if student_id in existing_attendance:
-                            time_in = existing_attendance[student_id]
-                        else:
-                            # Last resort: use current time
-                            time_in = get_current_datetime().time()
-                # Check if there was a previous record for this student today
-                elif student_id in existing_attendance:
-                    time_in = existing_attendance[student_id]
-                # Only use current time for new Present/Late records, not for existing ones
-                elif not attendance: 
+                    except (ValueError, TypeError) as e:
+                        print(f"Error parsing time for new record: {e}")
+                        time_in = get_current_datetime().time()
+                else:
+                    # For new records, use current time
                     time_in = get_current_datetime().time()
+                    print(f"New record with current time for student {student_id}")
             
-            # If a record exists, update it
-            if attendance:
-                attendance.status = status
-                # Only update time_in if it's a change from Absent to Present/Late
-                if status in ['Present', 'Late'] and time_in is not None:
-                    # Only update time_in if it was previously absent or None
-                    if attendance.time_in is None or attendance.status == 'Absent':
-                        attendance.time_in = time_in
-            else:
-                # Create a new attendance record
-                attendance = Attendance(
-                    student_id=student_id,
-                    date=date,
-                    time_in=time_in,
-                    status=status
-                )
-                db.session.add(attendance)
+            # Create the new record
+            record = Attendance(
+                student_id=student_id,
+                date=date,
+                status=status,
+                time_in=time_in
+            )
+            db.session.add(record)
+            print(f"Created new record for student {student_id}: status={status}, time_in={time_in}")
     
     db.session.commit()
     flash('Attendance marked successfully!', 'success')
