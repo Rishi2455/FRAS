@@ -98,34 +98,9 @@ document.addEventListener('DOMContentLoaded', function() {
             recognitionStatus.textContent = 'Face detected! Identifying...';
         }
         
-        // Simulate face detection box
-        const videoWidth = video.videoWidth || 640;
-        const videoHeight = video.videoHeight || 480;
-        const displayWidth = video.offsetWidth;
-        const displayHeight = video.offsetHeight;
-        
-        // Random position for face box (for simulation)
-        const boxWidth = Math.floor(videoWidth * 0.2);
-        const boxHeight = Math.floor(videoHeight * 0.3);
-        const left = Math.floor(Math.random() * (videoWidth - boxWidth));
-        const top = Math.floor(Math.random() * (videoHeight - boxHeight));
-        
-        // Scale coordinates to display size
-        const scaledLeft = (left / videoWidth) * displayWidth;
-        const scaledTop = (top / videoHeight) * displayHeight;
-        const scaledWidth = (boxWidth / videoWidth) * displayWidth;
-        const scaledHeight = (boxHeight / videoHeight) * displayHeight;
-        
-        // Create and add face box element
+        // Remove all face boxes instead of showing incorrectly positioned ones
         if (faceBoxesContainer) {
             faceBoxesContainer.innerHTML = '';
-            const faceBox = document.createElement('div');
-            faceBox.className = 'face-box';
-            faceBox.style.left = `${scaledLeft}px`;
-            faceBox.style.top = `${scaledTop}px`;
-            faceBox.style.width = `${scaledWidth}px`;
-            faceBox.style.height = `${scaledHeight}px`;
-            faceBoxesContainer.appendChild(faceBox);
         }
         
         // Simulate recognition delay
@@ -162,35 +137,49 @@ document.addEventListener('DOMContentLoaded', function() {
         const randomIndex = Math.floor(Math.random() * absentStudents.length);
         const studentRow = absentStudents[randomIndex];
         
-        // Get student info - use the dataset-id attribute to get the correct ID
+        // Get student info
         const studentIdInput = studentRow.querySelector('input[name="student_id"]');
         if (!studentIdInput) return; // Safety check
         
         const studentId = studentIdInput.value;
+        console.log(`Marking attendance for student ID: ${studentId}`);
+        
         const studentName = studentRow.querySelector('td:nth-child(2)').textContent;
+        console.log(`Student name: ${studentName}`);
         
         // Update status to "Present" for this specific student
         const statusSelect = studentRow.querySelector('select');
-        statusSelect.value = 'Present';
+        if (statusSelect) {
+            statusSelect.value = 'Present';
+        } else {
+            console.error("Could not find status dropdown for student");
+            return;
+        }
         
         // Update last updated time
         const updatedCell = document.getElementById(`updated-${studentId}`);
         if (updatedCell) {
             const now = new Date();
+            
             // Format time in 12-hour format with AM/PM
             const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
             const minutes = now.getMinutes().toString().padStart(2, '0');
             const seconds = now.getSeconds().toString().padStart(2, '0');
             const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
             const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
+            
             updatedCell.innerHTML = `<div class="badge bg-success rounded-pill"><i class="fas fa-clock me-1"></i>${timeString}</div>`;
             
-            // Add a hidden field with the timestamp for the form submission
+            // Create timestamp field name and 24-hour format timestamp
             const timestampFieldName = `time_in-${studentId}`;
+            const timestamp = `${now.getHours().toString().padStart(2, '0')}:${minutes}:${seconds}`;
             
-            // Remove any existing timestamp field first to avoid duplicates
+            console.log(`Creating timestamp field: ${timestampFieldName} with value: ${timestamp}`);
+            
+            // First check if a timestamp field already exists
             let existingTimestamp = studentRow.querySelector(`input[name="${timestampFieldName}"]`);
             if (existingTimestamp) {
+                console.log("Removing existing timestamp field");
                 existingTimestamp.remove();
             }
             
@@ -198,10 +187,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const timestampField = document.createElement('input');
             timestampField.type = 'hidden';
             timestampField.name = timestampFieldName;
-            timestampField.value = `${now.getHours().toString().padStart(2, '0')}:${minutes}:${seconds}`; // 24-hour format for backend
+            timestampField.value = timestamp;
             
-            // Add it to the row
-            studentRow.appendChild(timestampField);
+            // Add the timestamp field to the form
+            const form = document.getElementById('attendance-form');
+            if (form) {
+                form.appendChild(timestampField);
+                console.log("Added timestamp field to form");
+            } else {
+                // Fallback - add to the student row
+                studentRow.appendChild(timestampField);
+                console.log("Added timestamp field to student row");
+            }
+            
+            // Log the current form data for debugging
+            console.log("Form contains timestamp fields:", document.querySelectorAll(`input[name^="time_in-"]`).length);
+        } else {
+            console.error(`Could not find updated cell for student ${studentId}`);
         }
         }
         
