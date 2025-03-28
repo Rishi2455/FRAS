@@ -326,34 +326,25 @@
 
 
         function markFirstAbsentStudent() {
-            // Simulated single face recognition - only mark one student at a time
-            // In a real system, this would be replaced by actual face recognition results
+            // Simulated face recognition - only mark the first student if detected
+            // In production, this would be replaced by actual face recognition API results
             const studentRows = document.querySelectorAll('table tbody tr');
-            const absentStudents = Array.from(studentRows).filter(row => {
-                const statusSelect = row.querySelector('select[name="status"]');
-                return statusSelect && statusSelect.value === 'Absent';
-            });
-
-            if (absentStudents.length === 0) {
-                // All students are already marked
-                recognitionStatus.textContent = "All students already marked. No more faces to recognize.";
-                return;
-            }
-
-            // Simulate recognizing only one random student for demo
-            // This prevents marking all students present automatically
-            const randomIndex = Math.floor(Math.random() * absentStudents.length);
-            const studentRow = absentStudents[randomIndex];
+            const firstStudent = studentRows[0];  // Only consider the first student for demo
             
-            // Add artificial delay and only 30% chance of recognition
-            // This makes the simulation more realistic
-            if (Math.random() > 0.7) {
-                recognitionStatus.textContent = "Processing... No match found.";
+            if (!firstStudent) {
+                recognitionStatus.textContent = "No students in database.";
+                return;
+            }
+            
+            const statusSelect = firstStudent.querySelector('select[name="status"]');
+            if (!statusSelect || statusSelect.value !== 'Absent') {
+                recognitionStatus.textContent = "First student already marked present.";
                 return;
             }
 
-            // Get the student information
-            const studentId = studentRow.querySelector('input[name="student_id"]').value;
+            // For demo, only mark the first student as present
+            // In production, this would be based on actual face recognition
+            const studentId = firstStudent.querySelector('input[name="student_id"]').value;
             const studentName = studentRow.querySelector('td:nth-child(2)').textContent.trim();
 
             // Mark as present
