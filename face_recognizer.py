@@ -69,8 +69,8 @@ class FaceRecognizer:
         
         # Compare each face encoding to known encodings
         for face_encoding in self.face_encodings:
-            # Compare face encoding with all known face encodings
-            matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding, tolerance=0.6)
+            # Compare face encoding with all known face encodings with stricter tolerance
+            matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding, tolerance=0.4)
             
             # Calculate face distance (lower = more similar)
             face_distances = face_recognition.face_distance(self.known_face_encodings, face_encoding)
@@ -79,8 +79,8 @@ class FaceRecognizer:
                 # Get index of the closest matching face
                 best_match_index = np.argmin(face_distances)
                 
-                # If there's a match and the confidence is high enough
-                if matches[best_match_index] and face_distances[best_match_index] < 0.6:
+                # If there's a match and the confidence is very high (stricter threshold)
+                if matches[best_match_index] and face_distances[best_match_index] < 0.4:
                     student_id = self.known_face_ids[best_match_index]
                     name = self.known_face_names[best_match_index]
                     recognized_students.append((student_id, name))
