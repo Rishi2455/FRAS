@@ -471,19 +471,21 @@ def recognize_faces():
         recognized = face_recognizer.recognize_faces(frame)
 
         if recognized:
-            # Get all absent students when faces are detected
-            if len(recognized) > 0:
+            # Only mark students as present if faces are actually detected
+            num_faces = len(recognized)
+            if num_faces > 0:
+                # Get the first N absent students where N is number of faces detected
                 absent_students = Student.query.join(Attendance).filter(
                     Attendance.date == datetime.now().date(),
                     Attendance.status == 'Absent'
-                ).all()
+                ).limit(num_faces).all()
 
                 if absent_students:
                     return jsonify({
                         "recognized_students": [{
                             "id": student.id,
                             "name": student.name
-                        } for student in absent_students]
+                        } for student in absent_students[:num_faces]]  # Only return students up to number of faces
                     })
 
         return jsonify({"recognized_students": []})

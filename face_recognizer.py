@@ -1,5 +1,5 @@
 
-"""Simple attendance marker with simplified face detection"""
+"""Simple attendance marker with face detection"""
 import os
 import cv2
 import numpy as np
@@ -21,18 +21,28 @@ class FaceRecognizer:
     def recognize_faces(self, frame):
         """Detect faces in the frame"""
         try:
-            # Convert BGR to RGB as dlib expects RGB
+            # Convert BGR to RGB for dlib
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
             # Detect faces using dlib's frontal face detector
             faces = self.face_detector(rgb_frame)
             
-            # Return a detection for each face found
+            # Return face detections with coordinates for each face found
             detected_faces = []
-            for _ in faces:
-                detected_faces.append((1, "Face Detected"))
+            for face in faces:
+                # Get face coordinates
+                x = face.left()
+                y = face.top()
+                w = face.right() - face.left()
+                h = face.bottom() - face.top()
+                
+                # Return face detection with coordinates
+                detected_faces.append({
+                    'coords': (x, y, w, h),
+                    'confidence': 1.0  # dlib detector doesn't provide confidence
+                })
             
-            return detected_faces if len(faces) > 0 else []
+            return detected_faces
             
         except Exception as e:
             print(f"Error detecting faces: {e}")
