@@ -3,7 +3,7 @@ import csv
 import base64
 import uuid
 from io import StringIO
-from datetime import datetime, timedelta
+from datetime import timedelta, datetime
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response
 from sqlalchemy import func
@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 
 from app import app, db
 from models import Student, Attendance
+from utils import get_current_datetime, format_date, format_time, parse_date, KOLKATA_TZ, localize_datetime
 
 # Configure upload folder
 app.config['UPLOAD_FOLDER'] = 'student_images'
@@ -79,7 +80,7 @@ def add_student():
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         name = request.form.get('name')
-        email = request.form.get('email')
+        email = request.form.get('email', '').strip()
 
         # Validate inputs
         if not student_id or not name:
@@ -90,13 +91,26 @@ def add_student():
         if Student.query.filter_by(student_id=student_id).first():
             flash('Student ID already exists!', 'danger')
             return redirect(url_for('add_student'))
-
+            
+        # Check if email exists and is not empty
+        if email:
+            # Check if email already exists
+            if Student.query.filter_by(email=email).first():
+                flash('Email address already exists!', 'danger')
+                return redirect(url_for('add_student'))
+        
+        # Create student data dictionary
+        student_data = {
+            'student_id': student_id,
+            'name': name
+        }
+        
+        # Only add email if it's not empty
+        if email:
+            student_data['email'] = email
+            
         # Create new student
-        new_student = Student(
-            student_id=student_id,
-            name=name,
-            email=email
-        )
+        new_student = Student(**student_data)
         
         # Handle image upload
         image_filename = None
@@ -137,7 +151,20 @@ def edit_student(id):
     if request.method == 'POST':
         student.student_id = request.form.get('student_id')
         student.name = request.form.get('name')
-        student.email = request.form.get('email')
+        email = request.form.get('email', '').strip()
+        
+        # Handle email updates with empty values
+        if email:
+            # Check if different from current and not used by another student
+            if email != student.email:
+                existing_student = Student.query.filter_by(email=email).first()
+                if existing_student and existing_student.id != student.id:
+                    flash('Email address already used by another student!', 'danger')
+                    return redirect(url_for('edit_student', id=id))
+            student.email = email
+        else:
+            # If email is empty, set to None to avoid unique constraint issues
+            student.email = None
         
         # Handle image upload
         image_filename = None
@@ -176,30 +203,39 @@ def edit_student(id):
 def delete_student(id):
     student = Student.query.get_or_404(id)
     
-    # Delete student image if it exists
-    if student.image_path:
-        image_path = os.path.join(app.config['UPLOAD_FOLDER'], student.image_path)
-        if os.path.exists(image_path):
-            try:
-                os.remove(image_path)
-            except Exception as e:
-                print(f"Error removing student image: {e}")
+    try:
+        # First delete all attendance records related to this student
+        Attendance.query.filter_by(student_id=student.id).delete()
+        
+        # Delete student image if it exists
+        if student.image_path:
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], student.image_path)
+            if os.path.exists(image_path):
+                try:
+                    os.remove(image_path)
+                except Exception as e:
+                    print(f"Error removing student image: {e}")
+        
+        # Now delete the student
+        db.session.delete(student)
+        db.session.commit()
+        
+        flash('Student deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting student: {e}")
+        flash('An error occurred while deleting the student.', 'danger')
     
-    # Delete the student and their attendance records
-    db.session.delete(student)
-    db.session.commit()
-    
-    flash('Student deleted successfully!', 'success')
     return redirect(url_for('list_students'))
 
 
 # Attendance routes
 @app.route('/attendance')
 def attendance():
-    today = datetime.now().date()
-    date_str = request.args.get('date', today.strftime('%Y-%m-%d'))
+    today = get_current_datetime().date()
+    date_str = request.args.get('date', format_date(today))
     try:
-        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        selected_date = parse_date(date_str).date()
     except ValueError:
         selected_date = today
     
@@ -215,38 +251,115 @@ def attendance():
                           selected_date=selected_date)
 
 
-@app.route('/attendance/mark', methods=['POST'])
+@app.route('/attendance/mark', methods=['GET', 'POST'])
 def mark_attendance():
+    # For GET requests, redirect to the attendance page
+    if request.method == 'GET':
+        return redirect(url_for('attendance'))
+        
+    # For POST requests, process the attendance data
     date_str = request.form.get('date')
     student_ids = request.form.getlist('student_id')
     statuses = request.form.getlist('status')
     
     try:
-        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        date = parse_date(date_str).date()
     except ValueError:
-        date = datetime.now().date()
+        date = get_current_datetime().date()
     
-    # Delete existing attendance records for this date
-    Attendance.query.filter_by(date=date).delete()
+    # Debug info
+    print(f"Processing attendance for date: {date}")
+    print(f"Number of students: {len(student_ids)}")
     
-    # Add new attendance records
+    # Get all existing attendance records for this date to avoid completely overwriting them
+    existing_records = {}
+    for record in Attendance.query.filter_by(date=date).all():
+        existing_records[record.student_id] = record
+    
+    # Process each student's attendance
     for i, student_id in enumerate(student_ids):
-        if i < len(statuses):
-            status = statuses[i]
+        student_id = int(student_id)  # Ensure integer type
+        if i >= len(statuses):
+            continue  # Skip if no status for this student
             
-            # If the student is marked as absent, we don't add a time_in
-            time_in = None
+        status = statuses[i]
+        print(f"Processing student {student_id} with status {status}")
+        
+        # Try to find the timestamp field for this student
+        time_field_name = f'time_in-{student_id}'
+        has_custom_time = time_field_name in request.form and request.form[time_field_name]
+        
+        # Find if this student already has a record for today
+        record_exists = student_id in existing_records
+        
+        # CRUCIAL: Always get the existing time_in if available rather than creating a new one
+        if record_exists:
+            record = existing_records[student_id]
+            old_status = record.status
+            old_time_in = record.time_in
+            print(f"Existing record found for student {student_id}: status={old_status}, time_in={old_time_in}")
+            
+            # Update the status always
+            record.status = status
+            
+            # Handle time_in field - only update in specific cases
             if status in ['Present', 'Late']:
-                time_in = datetime.now().time()
+                # Case 1: A custom time was provided in the form
+                if has_custom_time:
+                    try:
+                        time_str = request.form[time_field_name]
+                        print(f"Custom time provided for student {student_id}: {time_str}")
+                        hours, minutes, seconds = map(int, time_str.split(':'))
+                        record.time_in = datetime.time(hours, minutes, seconds)
+                    except (ValueError, TypeError) as e:
+                        print(f"Error parsing time: {e}")
+                        # Keep the existing time_in if there was one
+                        if old_time_in is None:
+                            record.time_in = get_current_datetime().time()
+                
+                # Case 2: Student is newly marked Present/Late and had no time before
+                elif old_status == 'Absent' or old_time_in is None:
+                    record.time_in = get_current_datetime().time()
+                    print(f"Updated time for newly present student {student_id}")
+                
+                # Case 3: Already had a time, keep it
+                # No action needed, the existing time_in is preserved
             
-            # Always create an attendance record so we can track absence explicitly
-            attendance = Attendance(
+            # If the status changed to Absent, we might want to clear time_in
+            elif status == 'Absent' and old_status in ['Present', 'Late']:
+                record.time_in = None
+                print(f"Cleared time for newly absent student {student_id}")
+                
+        else:
+            # Create a new record
+            time_in = None
+            
+            # For Present/Late students we need a time
+            if status in ['Present', 'Late']:
+                # If a custom time was provided in the form, use it
+                if has_custom_time:
+                    try:
+                        time_str = request.form[time_field_name]
+                        print(f"New record with custom time for student {student_id}: {time_str}")
+                        hours, minutes, seconds = map(int, time_str.split(':'))
+                        time_in = datetime.time(hours, minutes, seconds)
+                    except (ValueError, TypeError) as e:
+                        print(f"Error parsing time for new record: {e}")
+                        time_in = get_current_datetime().time()
+                else:
+                    # For new records, use current time
+                    time_in = get_current_datetime().time()
+                    print(f"New record with current time for student {student_id}")
+            
+            # Create the new record
+            record = Attendance(
                 student_id=student_id,
                 date=date,
-                time_in=time_in,
-                status=status
+                status=status,
+                time_in=time_in
             )
-            db.session.add(attendance)
+            db.session.add(record)
+            print(f"Created new record for student {student_id}: status={status}, time_in={time_in}")
     
     db.session.commit()
     flash('Attendance marked successfully!', 'success')
@@ -287,8 +400,8 @@ def api_student_attendance():
         return jsonify({"error": "Missing required parameters"}), 400
     
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        start_date = parse_date(start_date_str).date()
+        end_date = parse_date(end_date_str).date()
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
     
@@ -307,9 +420,9 @@ def api_student_attendance():
     records = []
     for record in attendance_records:
         records.append({
-            "date": record.date.strftime('%Y-%m-%d'),
+            "date": format_date(record.date),
             "status": record.status,
-            "time_in": record.time_in.strftime('%H:%M:%S') if record.time_in else None
+            "time_in": format_time(record.time_in) if record.time_in else None
         })
     
     # Calculate summary stats
@@ -341,7 +454,7 @@ def api_date_attendance():
         return jsonify({"error": "Missing date parameter"}), 400
     
     try:
-        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        selected_date = parse_date(date_str).date()
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
     
@@ -360,7 +473,7 @@ def api_date_attendance():
             "name": student.name,
             "display_id": student.student_id,
             "status": attendance.status if attendance else "Absent",
-            "time_in": attendance.time_in.strftime('%H:%M:%S') if attendance and attendance.time_in else None
+            "time_in": format_time(attendance.time_in) if attendance and attendance.time_in else None
         })
     
     # Calculate summary stats
@@ -390,8 +503,8 @@ def export_attendance():
         export_format = request.form.get('format', 'csv')
         
         try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            start_date = parse_date(start_date_str).date()
+            end_date = parse_date(end_date_str).date()
         except (ValueError, TypeError):
             flash('Please enter valid dates', 'danger')
             return redirect(url_for('export_attendance'))
@@ -418,12 +531,12 @@ def export_attendance():
                 student = students.get(attendance.student_id)
                 if student:
                     writer.writerow([
-                        attendance.date.strftime('%Y-%m-%d'),
+                        format_date(attendance.date),
                         student.student_id,
                         student.name,
                         attendance.status,
-                        attendance.time_in.strftime('%H:%M:%S') if attendance.time_in else '',
-                        attendance.time_out.strftime('%H:%M:%S') if attendance.time_out else '',
+                        format_time(attendance.time_in) if attendance.time_in else '',
+                        format_time(attendance.time_out) if attendance.time_out else '',
                         attendance.notes or ''
                     ])
             
@@ -440,7 +553,7 @@ def export_attendance():
             return redirect(url_for('export_attendance'))
     
     # Default dates: last 30 days
-    end_date = datetime.now().date()
+    end_date = get_current_datetime().date()
     start_date = end_date - timedelta(days=30)
     
     return render_template(
