@@ -21,14 +21,16 @@ class FaceRecognizer:
     def recognize_faces(self, frame):
         """Detect faces in the frame"""
         try:
-            # Convert to grayscale for better detection
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            # Detect faces using dlib
-            faces = self.face_detector(gray)
-
-            # Return list of detected faces (without recognition)
-            return [(0, "Face Detected") for face in faces]
+            # Convert BGR to RGB as dlib expects RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Detect faces using dlib's frontal face detector
+            faces = self.face_detector(rgb_frame)
+            
+            if len(faces) > 0:
+                # Return a dummy ID with "Face Detected" for each face found
+                return [(1, "Face Detected")]
+            return []
         except Exception as e:
             print(f"Error detecting faces: {e}")
             return []

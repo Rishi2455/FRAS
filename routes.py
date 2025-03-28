@@ -450,10 +450,46 @@ def api_student_attendance():
 
 @app.route('/api/recognize_faces', methods=['POST'])
 def recognize_faces():
-    """Simplified API endpoint without face recognition"""
-    return jsonify({
-        "recognized_students": []
-    })
+    """API endpoint for face detection"""
+    try:
+        # Get image data from request
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({"error": "No image data provided"}), 400
+
+        # Convert base64 to image
+        image_data = data['image'].split(',')[1] if ',' in data['image'] else data['image']
+        image_bytes = base64.b64decode(image_data)
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if frame is None:
+            return jsonify({"error": "Invalid image data"}), 400
+
+        # Initialize face recognizer and detect faces
+        face_recognizer = FaceRecognizer(db)
+        recognized = face_recognizer.recognize_faces(frame)
+
+        if recognized:
+            # Get first absent student from database
+            absent_student = Student.query.join(Attendance).filter(
+                Attendance.date == datetime.now().date(),
+                Attendance.status == 'Absent'
+            ).first()
+
+            if absent_student:
+                return jsonify({
+                    "recognized_students": [{
+                        "id": absent_student.id,
+                        "name": absent_student.name
+                    }]
+                })
+
+        return jsonify({"recognized_students": []})
+
+    except Exception as e:
+        print(f"Error in face recognition: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/date_attendance')
 def api_date_attendance():
