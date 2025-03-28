@@ -333,23 +333,38 @@
             // Simulate analyzing for 1-2 seconds
             recognitionStatus.textContent = "Analyzing face features...";
             
+            // For a more realistic simulation, occasionally show "Face not recognized" or "No match found"
+            const recognitionSuccess = Math.random() > 0.2; // 80% success rate
+            
             setTimeout(() => {
-                // For demo purposes, get the first student that's still marked as absent
-                const studentToMark = absentStudents[0];
+                if (!recognitionSuccess) {
+                    // Simulate a failed recognition
+                    recognitionStatus.textContent = "Face detected but not recognized. Trying again...";
+                    
+                    // Try again after a short delay
+                    window.faceRecognitionTimeout = setTimeout(simulateFaceRecognition, 3000);
+                    return;
+                }
+                
+                // Select a random student from the absent list for more realistic recognition
+                const randomIndex = Math.floor(Math.random() * absentStudents.length);
+                const studentToMark = absentStudents[randomIndex];
                 
                 // Get the student information
                 const studentId = studentToMark.querySelector('input[name="student_id"]').value;
-                const studentName = studentToMark.querySelector('td:nth-child(2)').textContent;
+                const studentName = studentToMark.querySelector('td:nth-child(2)').textContent.trim();
                 
                 // Mark as present
                 const statusSelect = document.getElementById(`status-${studentId}`);
-                statusSelect.value = 'Present';
-                
-                // Update recognition status
-                recognitionStatus.textContent = `Face recognized: ${studentName}`;
-                
-                // Update attendance status in UI 
-                updateAttendanceUI(studentId, studentName);
+                if (statusSelect) {
+                    statusSelect.value = 'Present';
+                    
+                    // Update recognition status
+                    recognitionStatus.textContent = `Face recognized: ${studentName}`;
+                    
+                    // Update attendance status in UI 
+                    updateAttendanceUI(studentId, studentName);
+                }
                 
                 // Schedule next detection after a delay of 5-15 seconds
                 // This gives time to see the recognition before detecting the next face
