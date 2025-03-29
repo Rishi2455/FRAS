@@ -78,7 +78,8 @@ class FaceRecognizer:
                                         recognized_students.append({
                                             'student_id': student.id,
                                             'name': student.name,
-                                            'confidence': 1.0 - distance
+                                            'confidence': 1.0 - distance,
+                                            'detection_time': datetime.now().strftime('%H:%M:%S')
                                         })
                                         break
                 else:

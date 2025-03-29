@@ -487,7 +487,8 @@ def recognize_faces():
                     if student:
                         recognized_students.append({
                             "id": student.id,
-                            "name": student.name
+                            "name": student.name,
+                            "detection_time": face.get('detection_time', datetime.now().strftime('%H:%M:%S'))
                         })
 
             return jsonify({"recognized_students": recognized_students})

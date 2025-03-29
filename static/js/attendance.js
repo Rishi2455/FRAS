@@ -127,14 +127,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function updateAttendanceUI(studentId, studentName) {
+    function updateAttendanceUI(studentId, studentName, detectionTime = null) {
         const now = new Date();
-        const timeStr = now.toLocaleTimeString('en-US', {
+        let timeStr;
+        if (detectionTime) {
+          timeStr = detectionTime;
+        } else {
+          timeStr = now.toLocaleTimeString('en-US', {
             hour12: true,
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'
-        });
+          });
+        }
 
         // Update timestamp display
         const timeElement = document.getElementById(`updated-${studentId}`);
@@ -229,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
             activityLog.removeChild(emptyMessage);
         }
     }
-    
+
     // Simulate face detection and recognition (rest of the original functions remain)
     function updateAttendanceStats() {
         // Count attendance statuses
