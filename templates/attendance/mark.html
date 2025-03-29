@@ -191,8 +191,10 @@
                         <i class="fas fa-history me-2"></i>Recent Activity
                     </h5>
                     <div id="activity-log" class="list-group overflow-auto shadow-sm rounded" style="max-height: 300px;">
-                        {% for attendance in attendances.values()|selectattr('time_in', 'defined')|sort(attribute='time_in', reverse=True) %}
-                            <div class="list-group-item list-group-item-action border-0">
+                        {% set valid_attendances = attendances.values()|selectattr('time_in')|list %}
+                        {% if valid_attendances %}
+                            {% for attendance in valid_attendances|sort(attribute='time_in', reverse=True) %}
+                                <div class="list-group-item list-group-item-action border-0">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1 fw-bold">{{ students|selectattr('id', 'equalto', attendance.student_id)|map(attribute='name')|first }}</h6>
                                     <small class="text-muted">{{ attendance.time_in.strftime('%I:%M:%S %p') }}</small>
@@ -206,12 +208,13 @@
                                     </span>
                                 </p>
                             </div>
+                            {% endfor %}
                         {% else %}
                             <div class="list-group-item border-0 text-center py-4">
                                 <i class="fas fa-clock fs-4 text-muted mb-2"></i>
                                 <p class="text-muted mb-0">No attendance records for today.</p>
                             </div>
-                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </div>
