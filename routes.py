@@ -317,15 +317,15 @@ def mark_attendance():
                     try:
                         time_str = request.form[time_field_name]
                         print(f"Custom time provided for student {student_id}: {time_str}")
-                        # Convert hours to 24-hour format if needed
-                        if ':' in time_str:
-                            hours, minutes, seconds = map(int, time_str.split(':'))
-                            if hours < 24:  # Ensure valid hour
-                                record.time_in = datetime.time(hours, minutes, seconds)
-                            else:
-                                record.time_in = current_time
-                        else:
-                            record.time_in = current_time
+                        # Create a full datetime object first to handle both 12 and 24-hour formats
+                        current_date = get_current_datetime().date()
+                        # Try parsing with AM/PM format first
+                        try:
+                            dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %I:%M:%S %p")
+                        except ValueError:
+                            # If that fails, try 24-hour format
+                            dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %H:%M:%S")
+                        record.time_in = dt.time()
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time: {e}")
                         # Keep the existing time_in if present, otherwise use current time
