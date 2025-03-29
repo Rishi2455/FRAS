@@ -450,7 +450,7 @@ def api_student_attendance():
 
 @app.route('/api/recognize_faces', methods=['POST'])
 def recognize_faces():
-    """API endpoint for face detection"""
+    """API endpoint for face recognition"""
     try:
         # Get image data from request
         data = request.get_json()
@@ -466,27 +466,31 @@ def recognize_faces():
         if frame is None:
             return jsonify({"error": "Invalid image data"}), 400
 
-        # Initialize face recognizer and detect faces
+        # Initialize face recognizer and recognize faces
         face_recognizer = FaceRecognizer(db)
-        recognized = face_recognizer.recognize_faces(frame)
+        recognized_faces = face_recognizer.recognize_faces(frame)
 
-        if recognized:
-            # Only mark students as present if faces are actually detected
-            num_faces = len(recognized)
-            if num_faces > 0:
-                # Get the first N absent students where N is number of faces detected
-                absent_students = Student.query.join(Attendance).filter(
-                    Attendance.date == datetime.now().date(),
-                    Attendance.status == 'Absent'
-                ).limit(num_faces).all()
-
-                if absent_students:
-                    return jsonify({
-                        "recognized_students": [{
+        if recognized_faces:
+            # Get recognized students' IDs
+            current_date = datetime.now().date()
+            recognized_students = []
+            
+            for face in recognized_faces:
+                # Check if student is already marked present
+                attendance = Attendance.query.filter_by(
+                    student_id=face['student_id'],
+                    date=current_date
+                ).first()
+                
+                if not attendance or attendance.status == 'Absent':
+                    student = Student.query.get(face['student_id'])
+                    if student:
+                        recognized_students.append({
                             "id": student.id,
                             "name": student.name
-                        } for student in absent_students[:num_faces]]  # Only return students up to number of faces
-                    })
+                        })
+
+            return jsonify({"recognized_students": recognized_students})
 
         return jsonify({"recognized_students": []})
 
