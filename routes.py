@@ -318,14 +318,17 @@ def mark_attendance():
                         time_str = request.form[time_field_name]
                         print(f"Custom time provided for student {student_id}: {time_str}")
                         # Convert hours to 24-hour format if needed
-                        hours, minutes, seconds = map(int, time_str.split(':'))
-                        if hours < 24:  # Ensure valid hour
-                            record.time_in = datetime.time(hours, minutes, seconds)
+                        if ':' in time_str:
+                            hours, minutes, seconds = map(int, time_str.split(':'))
+                            if hours < 24:  # Ensure valid hour
+                                record.time_in = datetime.time(hours, minutes, seconds)
+                            else:
+                                record.time_in = current_time
                         else:
                             record.time_in = current_time
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time: {e}")
-                        # Keep the existing time_in if there was one
+                        # Keep the existing time_in if present, otherwise use current time
                         if old_time_in is None:
                             record.time_in = current_time
 
@@ -354,9 +357,12 @@ def mark_attendance():
                         time_str = request.form[time_field_name]
                         print(f"New record with custom time for student {student_id}: {time_str}")
                         # Convert hours to 24-hour format if needed
-                        hours, minutes, seconds = map(int, time_str.split(':'))
-                        if hours < 24:  # Ensure valid hour
-                            time_in = datetime.time(hours, minutes, seconds)
+                        if ':' in time_str:
+                            hours, minutes, seconds = map(int, time_str.split(':'))
+                            if hours < 24:  # Ensure valid hour
+                                time_in = datetime.time(hours, minutes, seconds)
+                            else:
+                                time_in = current_time
                         else:
                             time_in = current_time
                     except (ValueError, TypeError) as e:
