@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.wget
     pkgs.cmake
     pkgs.zlib
     pkgs.tk
