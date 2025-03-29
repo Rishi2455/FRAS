@@ -160,9 +160,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 timeField = document.createElement('input');
                 timeField.type = 'hidden';
                 timeField.name = `time_in-${studentId}`;
-                document.getElementById('attendance-form').appendChild(timeField);
+                timeField.value = timeValue;
+                const form = document.getElementById('attendance-form');
+                form.appendChild(timeField);
             }
-            timeField.value = timeValue;
         }
 
         // Show notification

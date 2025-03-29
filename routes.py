@@ -292,6 +292,11 @@ def mark_attendance():
         time_field_name = f'time_in-{student_id}'
         has_custom_time = time_field_name in request.form and request.form[time_field_name]
 
+        # Get current time only if we need it later and don't have a custom time
+        current_time = None
+        if not has_custom_time:
+            current_time = get_current_datetime().time()
+
         # Find if this student already has a record for today
         record_exists = student_id in existing_records
 
@@ -318,11 +323,11 @@ def mark_attendance():
                         print(f"Error parsing time: {e}")
                         # Keep the existing time_in if there was one
                         if old_time_in is None:
-                            record.time_in = get_current_datetime().time()
+                            record.time_in = current_time
 
                 # Case 2: Student is newly marked Present/Late and had no time before
                 elif old_status == 'Absent' or old_time_in is None:
-                    record.time_in = get_current_datetime().time()
+                    record.time_in = current_time
                     print(f"Updated time for newly present student {student_id}")
 
                 # Case 3: Already had a time, keep it
@@ -348,10 +353,10 @@ def mark_attendance():
                         time_in = datetime.time(hours, minutes, seconds)
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time for new record: {e}")
-                        time_in = get_current_datetime().time()
+                        time_in = current_time
                 else:
                     # For new records, use current time
-                    time_in = get_current_datetime().time()
+                    time_in = current_time
                     print(f"New record with current time for student {student_id}")
 
             # Create the new record
@@ -474,14 +479,14 @@ def recognize_faces():
             # Get recognized students' IDs
             current_date = datetime.now().date()
             recognized_students = []
-            
+
             for face in recognized_faces:
                 # Check if student is already marked present
                 attendance = Attendance.query.filter_by(
                     student_id=face['student_id'],
                     date=current_date
                 ).first()
-                
+
                 if not attendance or attendance.status == 'Absent':
                     student = Student.query.get(face['student_id'])
                     if student:
