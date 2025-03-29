@@ -317,8 +317,12 @@ def mark_attendance():
                     try:
                         time_str = request.form[time_field_name]
                         print(f"Custom time provided for student {student_id}: {time_str}")
+                        # Convert hours to 24-hour format if needed
                         hours, minutes, seconds = map(int, time_str.split(':'))
-                        record.time_in = datetime.time(hours, minutes, seconds)
+                        if hours < 24:  # Ensure valid hour
+                            record.time_in = datetime.time(hours, minutes, seconds)
+                        else:
+                            record.time_in = current_time
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time: {e}")
                         # Keep the existing time_in if there was one
@@ -349,8 +353,12 @@ def mark_attendance():
                     try:
                         time_str = request.form[time_field_name]
                         print(f"New record with custom time for student {student_id}: {time_str}")
+                        # Convert hours to 24-hour format if needed
                         hours, minutes, seconds = map(int, time_str.split(':'))
-                        time_in = datetime.time(hours, minutes, seconds)
+                        if hours < 24:  # Ensure valid hour
+                            time_in = datetime.time(hours, minutes, seconds)
+                        else:
+                            time_in = current_time
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time for new record: {e}")
                         time_in = current_time
