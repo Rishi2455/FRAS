@@ -8,39 +8,39 @@
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
                 <h2 class="card-title mb-4">Edit Student</h2>
-                
+
                 <form action="{{ url_for('edit_student', id=student.id) }}" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="student_id" class="form-label">Student ID *</label>
                         <input type="text" class="form-control" id="student_id" name="student_id" value="{{ student.student_id }}" required>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="name" class="form-label">Full Name *</label>
                         <input type="text" class="form-control" id="name" name="name" value="{{ student.name }}" required>
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="email" class="form-label">Email Address</label>
                         <input type="email" class="form-control" id="email" name="email" value="{{ student.email or '' }}">
                     </div>
-                    
+
                     <div class="mb-3">
                         <label for="student_image" class="form-label">Student Photo</label>
-                        
+
                         {% if student.image_path %}
                             <div class="mb-3">
                                 <p>Current photo:</p>
-                                <img src="{{ url_for('uploaded_file', filename=student.image_path) }}" 
-                                     alt="{{ student.name }}" class="img-thumbnail" 
+                                <img src="{{ url_for('uploaded_file', filename=student.image_path) }}"
+                                     alt="{{ student.name }}" class="img-thumbnail"
                                      style="max-height: 150px;">
                             </div>
                         {% endif %}
-                        
+
                         <input type="file" class="form-control" id="student_image" name="student_image" accept="image/*">
                         <div class="form-text">Upload a new photo to replace the current one (optional)</div>
                     </div>
-                    
+
                     <div class="mb-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="capture_webcam" name="capture_webcam">
@@ -49,7 +49,7 @@
                             </label>
                         </div>
                     </div>
-                    
+
                     <div id="webcam-container" class="mb-3 d-none">
                         <div class="camera-container mb-3">
                             <video id="webcam" class="camera-feed" autoplay playsinline></video>
@@ -65,7 +65,7 @@
                         <canvas id="canvas" class="d-none"></canvas>
                         <input type="hidden" id="webcam_image" name="webcam_image">
                     </div>
-                    
+
                     <div class="d-flex justify-content-between mt-4">
                         <a href="{{ url_for('view_student', id=student.id) }}" class="btn btn-secondary">Cancel</a>
                         <button type="submit" class="btn btn-primary">Update Student</button>
@@ -89,14 +89,14 @@
         const captureBtn = document.getElementById('capture-btn');
         const retakeBtn = document.getElementById('retake-btn');
         const webcamImageInput = document.getElementById('webcam_image');
-        
+
         let stream = null;
-        
+
         webcamCheckbox.addEventListener('change', function() {
             if (this.checked) {
                 webcamContainer.classList.remove('d-none');
                 fileInput.disabled = true;
-                
+
                 // Start webcam
                 navigator.mediaDevices.getUserMedia({ video: true })
                     .then(function(mediaStream) {
@@ -113,29 +113,29 @@
             } else {
                 webcamContainer.classList.add('d-none');
                 fileInput.disabled = false;
-                
+
                 // Stop webcam
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
             }
         });
-        
+
         captureBtn.addEventListener('click', function() {
             // Capture photo from webcam
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            
+
             // Convert to base64 data URL
             const imageDataURL = canvas.toDataURL('image/jpeg');
             webcamImageInput.value = imageDataURL;
-            
+
             // Show retake button
             captureBtn.classList.add('d-none');
             retakeBtn.classList.remove('d-none');
         });
-        
+
         retakeBtn.addEventListener('click', function() {
             webcamImageInput.value = '';
             captureBtn.classList.remove('d-none');
