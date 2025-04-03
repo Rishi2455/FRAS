@@ -1,127 +1,104 @@
-"""
-Module for face detection and recognition using OpenCV and face_recognition library.
-"""
+"""Face recognition implementation with dlib"""
 import os
 import cv2
 import numpy as np
-import face_recognition
-from database import Database
+import dlib
+from datetime import datetime
+from models import Student
+
+# Configure dlib's face detector
+face_detector = dlib.get_frontal_face_detector()
+shape_predictor = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat') if os.path.exists('shape_predictor_68_face_landmarks.dat') else None
+face_rec = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat') if os.path.exists('dlib_face_recognition_resnet_model_v1.dat') else None
 
 class FaceRecognizer:
     def __init__(self, database):
         """Initialize the face recognizer with a database connection."""
         self.db = database
-        self.known_face_encodings = []
-        self.known_face_names = []
-        self.known_face_ids = []
-        self.face_locations = []
-        self.face_encodings = []
-        self.face_names = []
-        self.processed_frame = None
-        
-        # Load known faces from database
-        self.load_known_faces()
-    
-    def load_known_faces(self):
-        """Load all known face encodings from the database."""
-        students = self.db.get_all_students()
-        
-        self.known_face_encodings = []
-        self.known_face_names = []
-        self.known_face_ids = []
-        
-        for student in students:
-            student_id = student['id']
-            name = student['name']
-            encoding = student['encoding']
-            
-            if encoding is not None:
-                self.known_face_encodings.append(encoding)
-                self.known_face_names.append(name)
-                self.known_face_ids.append(student_id)
-    
-    def detect_faces(self, frame):
-        """Detect faces in the given frame."""
-        # Convert BGR to RGB (face_recognition uses RGB)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # Find all face locations in the frame
-        self.face_locations = face_recognition.face_locations(rgb_frame)
-        
-        return self.face_locations
-    
-    def recognize_faces(self, frame):
-        """Recognize faces in the given frame and return list of (id, name) tuples."""
-        # Detect faces
-        self.detect_faces(frame)
-        
-        # If no faces are detected or no known faces to compare against
-        if not self.face_locations or not self.known_face_encodings:
-            return []
-        
-        # Convert BGR to RGB (face_recognition uses RGB)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # Compute face encodings for each face found
-        self.face_encodings = face_recognition.face_encodings(rgb_frame, self.face_locations)
-        
-        recognized_students = []
-        
-        # Compare each face encoding to known encodings
-        for face_encoding in self.face_encodings:
-            # Compare face encoding with all known face encodings
-            matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding, tolerance=0.6)
-            
-            # Calculate face distance (lower = more similar)
-            face_distances = face_recognition.face_distance(self.known_face_encodings, face_encoding)
-            
-            if len(face_distances) > 0:
-                # Get index of the closest matching face
-                best_match_index = np.argmin(face_distances)
-                
-                # If there's a match and the confidence is high enough
-                if matches[best_match_index] and face_distances[best_match_index] < 0.6:
-                    student_id = self.known_face_ids[best_match_index]
-                    name = self.known_face_names[best_match_index]
-                    recognized_students.append((student_id, name))
-        
-        return recognized_students
-    
-    def draw_face_locations(self, frame):
-        """Draw rectangles around detected faces in the frame."""
-        # Create a copy of the frame to avoid modifying the original
-        display_frame = frame.copy()
-        
-        # Draw rectangles and names for each face
-        for (top, right, bottom, left) in self.face_locations:
-            # Draw rectangle around the face
-            cv2.rectangle(display_frame, (left, top), (right, bottom), (0, 255, 0), 2)
-            
-            # Draw label background
-            cv2.rectangle(display_frame, (left, bottom - 35), (right, bottom), (0, 255, 0), cv2.FILLED)
-            
-            # Draw name label
-            cv2.putText(display_frame, "Face Detected", (left + 6, bottom - 6), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 1)
-        
-        return display_frame
-    
-    def encode_face(self, frame):
-        """Encode a face from a frame for storage in the database."""
-        # Convert BGR to RGB (face_recognition uses RGB)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        
-        # Detect faces
-        face_locations = face_recognition.face_locations(rgb_frame)
-        
-        # If no face or multiple faces are detected
-        if len(face_locations) != 1:
+        self.face_detector = face_detector
+        self.shape_predictor = shape_predictor
+        self.face_rec = face_rec
+
+        # Ensure student_images directory exists
+        if not os.path.exists('student_images'):
+            os.makedirs('student_images')
+
+    def load_student_image(self, image_path):
+        """Load and preprocess a student's image"""
+        if not os.path.exists(image_path):
             return None
-        
-        # Compute face encoding
-        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-        
-        if len(face_encodings) > 0:
-            return face_encodings[0]
-            
+        return cv2.imread(image_path)
+
+    def get_face_encoding(self, image):
+        """Get face encoding from image"""
+        try:
+            if self.shape_predictor and self.face_rec:
+                rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                faces = self.face_detector(rgb_image)
+                if len(faces) > 0:
+                    shape = self.shape_predictor(rgb_image, faces[0])
+                    return np.array(self.face_rec.compute_face_descriptor(rgb_image, shape))
+        except Exception as e:
+            print(f"Error getting face encoding: {e}")
         return None
+
+    def recognize_faces(self, frame):
+        """Detect and recognize faces in the frame"""
+        try:
+            # Convert BGR to RGB for dlib
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # Detect faces using dlib
+            faces = self.face_detector(rgb_frame)
+            
+            if not faces:
+                return []
+
+            # Get all students from database
+            students = Student.query.all()
+            recognized_students = []
+
+            # Process each detected face
+            for face in faces:
+                try:
+                    if self.shape_predictor and self.face_rec:
+                        # Get face encoding for detected face
+                        shape = self.shape_predictor(rgb_frame, face)
+                        face_encoding = np.array(self.face_rec.compute_face_descriptor(rgb_frame, shape))
+
+                        # Compare with student images
+                        for student in students:
+                            try:
+                                if student.image_path:
+                                    student_img_path = os.path.join('student_images', student.image_path)
+                                    if not os.path.exists(student_img_path):
+                                        continue
+                                        
+                                    student_img = self.load_student_image(student_img_path)
+                                    if student_img is None:
+                                        continue
+
+                                    student_encoding = self.get_face_encoding(student_img)
+                                    if student_encoding is not None:
+                                        # Compare face encodings
+                                        distance = np.linalg.norm(face_encoding - student_encoding)
+                                        if distance < 0.4:  # Threshold for face matching
+                                            recognized_students.append({
+                                                'student_id': student.id,
+                                                'name': student.name,
+                                                'confidence': 1.0 - distance,
+                                                'detection_time': datetime.now().strftime('%H:%M:%S')
+                                            })
+                                            break
+                            except Exception as e:
+                                print(f"Error processing student {student.id}: {e}")
+                                continue
+                except Exception as e:
+                    print(f"Error processing face: {e}")
+                    continue
+
+            return recognized_students
+
+        except Exception as e:
+            print(f"Error in face recognition: {e}")
+            return []
