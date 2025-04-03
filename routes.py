@@ -2,6 +2,9 @@ import os
 import csv
 import base64
 import uuid
+import cv2
+import numpy as np
+from face_recognizer import FaceRecognizer
 from io import StringIO
 from datetime import timedelta, datetime
 
@@ -41,21 +44,21 @@ def save_base64_image(base64_data):
         # Extract the base64 content from the data URL
         if ',' in base64_data:
             base64_data = base64_data.split(',')[1]
-        
+
         # Decode base64 data
         image_data = base64.b64decode(base64_data)
-        
+
         # Generate a unique filename
         unique_filename = f"{uuid.uuid4().hex}_webcam.jpg"
-        
+
         # Ensure the upload folder exists
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        
+
         # Save the image
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         with open(file_path, 'wb') as f:
             f.write(image_data)
-        
+
         return unique_filename
     except Exception as e:
         print(f"Error saving base64 image: {e}")
@@ -91,49 +94,49 @@ def add_student():
         if Student.query.filter_by(student_id=student_id).first():
             flash('Student ID already exists!', 'danger')
             return redirect(url_for('add_student'))
-            
+
         # Check if email exists and is not empty
         if email:
             # Check if email already exists
             if Student.query.filter_by(email=email).first():
                 flash('Email address already exists!', 'danger')
                 return redirect(url_for('add_student'))
-        
+
         # Create student data dictionary
         student_data = {
             'student_id': student_id,
             'name': name
         }
-        
+
         # Only add email if it's not empty
         if email:
             student_data['email'] = email
-            
+
         # Create new student
         new_student = Student(**student_data)
-        
+
         # Handle image upload
         image_filename = None
-        
+
         # Check for webcam image (base64 data)
         webcam_image = request.form.get('webcam_image')
         if webcam_image:
             image_filename = save_base64_image(webcam_image)
-        
+
         # Check for file upload
         elif 'student_image' in request.files:
             image_file = request.files['student_image']
             image_filename = save_image_file(image_file)
-        
+
         if image_filename:
             new_student.image_path = image_filename
-        
+
         db.session.add(new_student)
         db.session.commit()
-        
+
         flash('Student added successfully!', 'success')
         return redirect(url_for('list_students'))
-        
+
     return render_template('students/add.html')
 
 
@@ -147,12 +150,12 @@ def view_student(id):
 @app.route('/students/<int:id>/edit', methods=['GET', 'POST'])
 def edit_student(id):
     student = Student.query.get_or_404(id)
-    
+
     if request.method == 'POST':
         student.student_id = request.form.get('student_id')
         student.name = request.form.get('name')
         email = request.form.get('email', '').strip()
-        
+
         # Handle email updates with empty values
         if email:
             # Check if different from current and not used by another student
@@ -165,21 +168,21 @@ def edit_student(id):
         else:
             # If email is empty, set to None to avoid unique constraint issues
             student.email = None
-        
+
         # Handle image upload
         image_filename = None
-        
+
         # Check for webcam image (base64 data)
         webcam_image = request.form.get('webcam_image')
         if webcam_image:
             image_filename = save_base64_image(webcam_image)
-        
+
         # Check for file upload
         elif 'student_image' in request.files:
             image_file = request.files['student_image']
             if image_file.filename:  # Only update if a new file is selected
                 image_filename = save_image_file(image_file)
-        
+
         if image_filename:
             # Delete old image file if it exists
             if student.image_path:
@@ -189,24 +192,24 @@ def edit_student(id):
                         os.remove(old_image_path)
                     except Exception as e:
                         print(f"Error removing old image: {e}")
-            
+
             student.image_path = image_filename
-        
+
         db.session.commit()
         flash('Student updated successfully!', 'success')
         return redirect(url_for('view_student', id=student.id))
-        
+
     return render_template('students/edit.html', student=student)
 
 
 @app.route('/students/<int:id>/delete', methods=['POST'])
 def delete_student(id):
     student = Student.query.get_or_404(id)
-    
+
     try:
         # First delete all attendance records related to this student
         Attendance.query.filter_by(student_id=student.id).delete()
-        
+
         # Delete student image if it exists
         if student.image_path:
             image_path = os.path.join(app.config['UPLOAD_FOLDER'], student.image_path)
@@ -215,17 +218,17 @@ def delete_student(id):
                     os.remove(image_path)
                 except Exception as e:
                     print(f"Error removing student image: {e}")
-        
+
         # Now delete the student
         db.session.delete(student)
         db.session.commit()
-        
+
         flash('Student deleted successfully!', 'success')
     except Exception as e:
         db.session.rollback()
         print(f"Error deleting student: {e}")
         flash('An error occurred while deleting the student.', 'danger')
-    
+
     return redirect(url_for('list_students'))
 
 
@@ -238,16 +241,16 @@ def attendance():
         selected_date = parse_date(date_str).date()
     except ValueError:
         selected_date = today
-    
+
     # Get all students
     students = Student.query.all()
-    
+
     # Get attendance for selected date
     attendances = {a.student_id: a for a in Attendance.query.filter_by(date=selected_date).all()}
-    
-    return render_template('attendance/mark.html', 
-                          students=students, 
-                          attendances=attendances, 
+
+    return render_template('attendance/mark.html',
+                          students=students,
+                          attendances=attendances,
                           selected_date=selected_date)
 
 
@@ -256,101 +259,142 @@ def mark_attendance():
     # For GET requests, redirect to the attendance page
     if request.method == 'GET':
         return redirect(url_for('attendance'))
-        
+
     # For POST requests, process the attendance data
     date_str = request.form.get('date')
     student_ids = request.form.getlist('student_id')
     statuses = request.form.getlist('status')
-    
+
     try:
         date = parse_date(date_str).date()
     except ValueError:
         date = get_current_datetime().date()
-    
+
     # Debug info
     print(f"Processing attendance for date: {date}")
     print(f"Number of students: {len(student_ids)}")
-    
+
     # Get all existing attendance records for this date to avoid completely overwriting them
     existing_records = {}
     for record in Attendance.query.filter_by(date=date).all():
         existing_records[record.student_id] = record
-    
+
     # Process each student's attendance
     for i, student_id in enumerate(student_ids):
         student_id = int(student_id)  # Ensure integer type
         if i >= len(statuses):
             continue  # Skip if no status for this student
-            
+
         status = statuses[i]
         print(f"Processing student {student_id} with status {status}")
-        
+
         # Try to find the timestamp field for this student
         time_field_name = f'time_in-{student_id}'
         has_custom_time = time_field_name in request.form and request.form[time_field_name]
-        
+
+        # Get current time only if we need it later and don't have a custom time
+        current_time = None
+        if not has_custom_time:
+            current_time = get_current_datetime().time()
+
         # Find if this student already has a record for today
         record_exists = student_id in existing_records
-        
+
         # CRUCIAL: Always get the existing time_in if available rather than creating a new one
         if record_exists:
             record = existing_records[student_id]
             old_status = record.status
             old_time_in = record.time_in
             print(f"Existing record found for student {student_id}: status={old_status}, time_in={old_time_in}")
-            
+
             # Update the status always
             record.status = status
-            
+
             # Handle time_in field - only update in specific cases
             if status in ['Present', 'Late']:
                 # Case 1: A custom time was provided in the form
                 if has_custom_time:
                     try:
-                        time_str = request.form[time_field_name]
+                        time_str = request.form[time_field_name].strip()
                         print(f"Custom time provided for student {student_id}: {time_str}")
-                        hours, minutes, seconds = map(int, time_str.split(':'))
-                        record.time_in = datetime.time(hours, minutes, seconds)
+
+                        # First try parsing the time directly
+                        try:
+                            # Try 12-hour format with AM/PM
+                            if "AM" in time_str.upper() or "PM" in time_str.upper():
+                                # Remove any icons or extra spaces from the time string
+                                time_str = ' '.join([part for part in time_str.split() if ':' in part or part.upper() in ['AM', 'PM']])
+                                parsed_time = datetime.strptime(time_str, "%I:%M:%S %p").time()
+                            else:
+                                # Try 24-hour format
+                                time_str = time_str.split()[0] if ' ' in time_str else time_str  # Remove any extra text
+                                parsed_time = datetime.strptime(time_str, "%H:%M:%S").time()
+                            record.time_in = parsed_time
+                        except ValueError as e:
+                            print(f"Direct time parsing failed: {e}")
+                            # If direct parsing fails, try with current date
+                            current_date = get_current_datetime().date()
+                            try:
+                                dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %I:%M:%S %p")
+                                record.time_in = dt.time()
+                            except ValueError:
+                                dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %H:%M:%S")
+                                record.time_in = dt.time()
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time: {e}")
-                        # Keep the existing time_in if there was one
-                        if old_time_in is None:
+                        # Keep existing time_in if present, otherwise use current time
+                        if not record.time_in:
                             record.time_in = get_current_datetime().time()
-                
+                        if old_time_in is None:
+                            record.time_in = current_time
+
                 # Case 2: Student is newly marked Present/Late and had no time before
                 elif old_status == 'Absent' or old_time_in is None:
-                    record.time_in = get_current_datetime().time()
+                    record.time_in = current_time
                     print(f"Updated time for newly present student {student_id}")
-                
+
                 # Case 3: Already had a time, keep it
                 # No action needed, the existing time_in is preserved
-            
+
             # If the status changed to Absent, we might want to clear time_in
             elif status == 'Absent' and old_status in ['Present', 'Late']:
                 record.time_in = None
                 print(f"Cleared time for newly absent student {student_id}")
-                
+
         else:
             # Create a new record
             time_in = None
-            
+
             # For Present/Late students we need a time
             if status in ['Present', 'Late']:
                 # If a custom time was provided in the form, use it
                 if has_custom_time:
                     try:
-                        time_str = request.form[time_field_name]
+                        time_str = request.form[time_field_name].strip()
                         print(f"New record with custom time for student {student_id}: {time_str}")
-                        hours, minutes, seconds = map(int, time_str.split(':'))
-                        time_in = datetime.time(hours, minutes, seconds)
+                        
+                        # Try parsing the time in different formats
+                        try:
+                            # Try 12-hour format with AM/PM
+                            if "AM" in time_str.upper() or "PM" in time_str.upper():
+                                # Remove any icons or extra spaces from the time string
+                                time_str = ' '.join([part for part in time_str.split() if ':' in part or part.upper() in ['AM', 'PM']])
+                                time_in = datetime.strptime(time_str, "%I:%M:%S %p").time()
+                            else:
+                                # Try 24-hour format
+                                time_str = time_str.split()[0] if ' ' in time_str else time_str  # Remove any extra text
+                                time_in = datetime.strptime(time_str, "%H:%M:%S").time()
+                        except ValueError as e:
+                            print(f"Error parsing time for new record: {e}")
+                            time_in = current_time
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time for new record: {e}")
-                        time_in = get_current_datetime().time()
+                        time_in = current_time
                 else:
                     # For new records, use current time
-                    time_in = get_current_datetime().time()
+                    time_in = current_time
                     print(f"New record with current time for student {student_id}")
-            
+
             # Create the new record
             record = Attendance(
                 student_id=student_id,
@@ -360,7 +404,7 @@ def mark_attendance():
             )
             db.session.add(record)
             print(f"Created new record for student {student_id}: status={status}, time_in={time_in}")
-    
+
     db.session.commit()
     flash('Attendance marked successfully!', 'success')
     return redirect(url_for('attendance', date=date_str))
@@ -369,7 +413,7 @@ def mark_attendance():
 @app.route('/attendance/report')
 def attendance_report():
     students = Student.query.all()
-    
+
     # Calculate attendance statistics for each student
     stats = []
     for student in students:
@@ -377,7 +421,7 @@ def attendance_report():
         present = Attendance.query.filter_by(student_id=student.id, status='Present').count()
         late = Attendance.query.filter_by(student_id=student.id, status='Late').count()
         absent = Attendance.query.filter_by(student_id=student.id, status='Absent').count()
-        
+
         stats.append({
             'student': student,
             'total': total,
@@ -386,7 +430,7 @@ def attendance_report():
             'absent': absent,
             'attendance_rate': (present + late) / total * 100 if total > 0 else 0
         })
-    
+
     return render_template('attendance/report.html', stats=stats)
 
 @app.route('/api/student_attendance')
@@ -395,27 +439,27 @@ def api_student_attendance():
     student_id = request.args.get('student_id')
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
-    
+
     if not student_id or not start_date_str or not end_date_str:
         return jsonify({"error": "Missing required parameters"}), 400
-    
+
     try:
         start_date = parse_date(start_date_str).date()
         end_date = parse_date(end_date_str).date()
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
-    
+
     student = Student.query.get(student_id)
     if not student:
         return jsonify({"error": "Student not found"}), 404
-    
+
     # Query attendance records for this student in the date range
     attendance_records = Attendance.query.filter(
         Attendance.student_id == student_id,
         Attendance.date >= start_date,
         Attendance.date <= end_date
     ).order_by(Attendance.date.desc()).all()
-    
+
     # Format the data for the response
     records = []
     for record in attendance_records:
@@ -424,12 +468,12 @@ def api_student_attendance():
             "status": record.status,
             "time_in": format_time(record.time_in) if record.time_in else None
         })
-    
+
     # Calculate summary stats
     present = sum(1 for record in attendance_records if record.status == 'Present')
     late = sum(1 for record in attendance_records if record.status == 'Late')
     absent = sum(1 for record in attendance_records if record.status == 'Absent')
-    
+
     return jsonify({
         "student": {
             "id": student.id,
@@ -445,25 +489,97 @@ def api_student_attendance():
         }
     })
 
+@app.route('/api/recognize_faces', methods=['POST'])
+def recognize_faces():
+    """API endpoint for face recognition"""
+    try:
+        # Get image data from request
+        data = request.get_json()
+        if not data or 'image' not in data:
+            print("No image data provided in request")
+            return jsonify({"error": "No image data provided"}), 400
+
+        # Get the selected date from the request
+        selected_date_str = request.args.get('date')
+        try:
+            selected_date = parse_date(selected_date_str).date() if selected_date_str else get_current_datetime().date()
+        except ValueError:
+            print(f"Invalid date format: {selected_date_str}")
+            selected_date = get_current_datetime().date()
+
+        # Convert base64 to image
+        try:
+            image_data = data['image'].split(',')[1] if ',' in data['image'] else data['image']
+            image_bytes = base64.b64decode(image_data)
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if frame is None:
+                print("Failed to decode image data")
+                return jsonify({"error": "Invalid image data"}), 400
+        except Exception as e:
+            print(f"Error decoding image: {e}")
+            return jsonify({"error": "Failed to process image data"}), 400
+
+        # Initialize face recognizer and recognize faces
+        try:
+            face_recognizer = FaceRecognizer(db)
+            recognized_faces = face_recognizer.recognize_faces(frame)
+
+            if recognized_faces:
+                recognized_students = []
+
+                for face in recognized_faces:
+                    try:
+                        # Check if student is already marked present for the selected date
+                        attendance = Attendance.query.filter_by(
+                            student_id=face['student_id'],
+                            date=selected_date
+                        ).first()
+
+                        if not attendance or attendance.status == 'Absent':
+                            student = Student.query.get(face['student_id'])
+                            if student:
+                                recognized_students.append({
+                                    "id": student.id,
+                                    "name": student.name,
+                                    "detection_time": face.get('detection_time', datetime.now().strftime('%H:%M:%S'))
+                                })
+                    except Exception as e:
+                        print(f"Error processing recognized face: {e}")
+                        continue
+
+                return jsonify({"recognized_students": recognized_students})
+
+            return jsonify({"recognized_students": []})
+
+        except Exception as e:
+            print(f"Error in face recognition process: {e}")
+            return jsonify({"error": "Face recognition failed"}), 500
+
+    except Exception as e:
+        print(f"Unexpected error in face recognition endpoint: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
 @app.route('/api/date_attendance')
 def api_date_attendance():
     """API endpoint to get attendance data for all students on a specific date"""
     date_str = request.args.get('date')
-    
+
     if not date_str:
         return jsonify({"error": "Missing date parameter"}), 400
-    
+
     try:
         selected_date = parse_date(date_str).date()
     except ValueError:
         return jsonify({"error": "Invalid date format"}), 400
-    
+
     # Get all students
     students = Student.query.all()
-    
+
     # Get attendance records for the selected date
     attendance_records = {a.student_id: a for a in Attendance.query.filter_by(date=selected_date).all()}
-    
+
     # Format the data for the response
     records = []
     for student in students:
@@ -475,13 +591,13 @@ def api_date_attendance():
             "status": attendance.status if attendance else "Absent",
             "time_in": format_time(attendance.time_in) if attendance and attendance.time_in else None
         })
-    
+
     # Calculate summary stats
     present = sum(1 for record in records if record['status'] == 'Present')
     late = sum(1 for record in records if record['status'] == 'Late')
     absent = sum(1 for record in records if record['status'] == 'Absent')
     total = len(records)
-    
+
     return jsonify({
         "date": date_str,
         "attendance_records": records,
@@ -501,31 +617,31 @@ def export_attendance():
         start_date_str = request.form.get('start_date')
         end_date_str = request.form.get('end_date')
         export_format = request.form.get('format', 'csv')
-        
+
         try:
             start_date = parse_date(start_date_str).date()
             end_date = parse_date(end_date_str).date()
         except (ValueError, TypeError):
             flash('Please enter valid dates', 'danger')
             return redirect(url_for('export_attendance'))
-        
+
         # Query attendance data for the date range
         attendances = Attendance.query.filter(
             Attendance.date >= start_date,
             Attendance.date <= end_date
         ).order_by(Attendance.date).all()
-        
+
         # Get all students
         students = {student.id: student for student in Student.query.all()}
-        
+
         if export_format == 'csv':
             # Create CSV file in memory
             output = StringIO()
             writer = csv.writer(output)
-            
+
             # Write header
             writer.writerow(['Date', 'Student ID', 'Student Name', 'Status', 'Time In', 'Time Out', 'Notes'])
-            
+
             # Write data
             for attendance in attendances:
                 student = students.get(attendance.student_id)
@@ -539,7 +655,7 @@ def export_attendance():
                         format_time(attendance.time_out) if attendance.time_out else '',
                         attendance.notes or ''
                     ])
-            
+
             # Prepare response
             output.seek(0)
             filename = f"attendance_{start_date_str}_to_{end_date_str}.csv"
@@ -551,11 +667,11 @@ def export_attendance():
         else:
             flash('Only CSV export is currently supported', 'info')
             return redirect(url_for('export_attendance'))
-    
+
     # Default dates: last 30 days
     end_date = get_current_datetime().date()
     start_date = end_date - timedelta(days=30)
-    
+
     return render_template(
         'attendance/export.html',
         start_date=start_date,
