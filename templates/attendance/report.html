@@ -17,25 +17,25 @@
             <div class="card-body">
                 <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" 
+                        <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary"
                                 type="button" role="tab" aria-controls="summary" aria-selected="true">
                             Summary
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="student-tab" data-bs-toggle="tab" data-bs-target="#student" 
+                        <button class="nav-link" id="student-tab" data-bs-toggle="tab" data-bs-target="#student"
                                 type="button" role="tab" aria-controls="student" aria-selected="false">
                             By Student
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="date-tab" data-bs-toggle="tab" data-bs-target="#date" 
+                        <button class="nav-link" id="date-tab" data-bs-toggle="tab" data-bs-target="#date"
                                 type="button" role="tab" aria-controls="date" aria-selected="false">
                             By Date
                         </button>
                     </li>
                 </ul>
-                
+
                 <div class="tab-content" id="reportTabsContent">
                     <!-- Summary Tab -->
                     <div class="tab-pane fade show active" id="summary" role="tabpanel" aria-labelledby="summary-tab">
@@ -69,7 +69,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <h4 class="mb-3">Attendance Rate by Student</h4>
                         <div class="table-responsive">
                             <table class="table table-hover">
@@ -96,7 +96,7 @@
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div class="progress flex-grow-1 me-2" style="height: 10px;">
-                                                        <div class="progress-bar bg-success" role="progressbar" 
+                                                        <div class="progress-bar bg-success" role="progressbar"
                                                              style="width: {{ stat.attendance_rate }}%">
                                                         </div>
                                                     </div>
@@ -113,7 +113,7 @@
                             </table>
                         </div>
                     </div>
-                    
+
                     <!-- Student Tab -->
                     <div class="tab-pane fade" id="student" role="tabpanel" aria-labelledby="student-tab">
                         <div class="row mb-4">
@@ -139,14 +139,14 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div id="student-report-content" class="mt-4">
                             <div class="alert alert-info">
                                 Select a student and date range to view detailed attendance information.
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Date Tab -->
                     <div class="tab-pane fade" id="date" role="tabpanel" aria-labelledby="date-tab">
                         <div class="mb-4">
@@ -155,7 +155,7 @@
                                 <input type="date" id="report-date" class="form-control" style="max-width: 300px;">
                             </div>
                         </div>
-                        
+
                         <div id="date-report-content" class="mt-4">
                             <div class="alert alert-info">
                                 Select a date to view attendance for that day.
@@ -176,26 +176,26 @@
         // Initialize with current date
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('report-date').value = today;
-        
+
         // Date range defaults (last 30 days)
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         document.getElementById('start-date').value = thirtyDaysAgo.toISOString().split('T')[0];
         document.getElementById('end-date').value = today;
-        
+
         // Student report generation
         const studentSelect = document.getElementById('student-select');
         const startDateInput = document.getElementById('start-date');
         const endDateInput = document.getElementById('end-date');
         const studentReportContent = document.getElementById('student-report-content');
-        
+
         function generateStudentReport() {
             const studentId = studentSelect.value;
             const startDate = startDateInput.value;
             const endDate = endDateInput.value;
-            
+
             console.log("Generating student report for:", studentId, startDate, endDate);
-            
+
             if (!studentId) {
                 studentReportContent.innerHTML = `
                     <div class="alert alert-info">
@@ -204,7 +204,7 @@
                 `;
                 return;
             }
-            
+
             // Show loading indicator
             studentReportContent.innerHTML = `
                 <div class="text-center py-4">
@@ -214,11 +214,11 @@
                     <p class="mt-2">Loading attendance data...</p>
                 </div>
             `;
-            
+
             // Fetch data from the server
             const apiUrl = `/api/student_attendance?student_id=${studentId}&start_date=${startDate}&end_date=${endDate}`;
             console.log("Fetching data from:", apiUrl);
-            
+
             fetch(apiUrl)
                 .then(response => {
                     console.log("API Response status:", response.status);
@@ -233,7 +233,7 @@
                     let html = `
                         <h4>${data.student.name}'s Attendance</h4>
                         <p>Period: ${startDate} to ${endDate}</p>
-                        
+
                         <div class="row mb-4">
                             <div class="col-md-4">
                                 <div class="card bg-success text-white">
@@ -261,7 +261,7 @@
                             </div>
                         </div>
                     `;
-                    
+
                     if (data.attendance_records.length === 0) {
                         html += `
                             <div class="alert alert-info">
@@ -281,11 +281,11 @@
                                     </thead>
                                     <tbody>
                         `;
-                        
+
                         for (const record of data.attendance_records) {
                             const statusClass = record.status === 'Present' ? 'text-success' :
                                               record.status === 'Late' ? 'text-warning' : 'text-danger';
-                            
+
                             html += `
                                 <tr>
                                     <td>${record.date}</td>
@@ -294,14 +294,14 @@
                                 </tr>
                             `;
                         }
-                        
+
                         html += `
                                     </tbody>
                                 </table>
                             </div>
                         `;
                     }
-                    
+
                     studentReportContent.innerHTML = html;
                 })
                 .catch(error => {
@@ -314,26 +314,26 @@
                     `;
                 });
         }
-        
+
         // Also trigger the report when the student tab is shown
         document.getElementById('student-tab').addEventListener('click', function() {
             if (studentSelect.value) {
                 generateStudentReport();
             }
         });
-        
+
         studentSelect.addEventListener('change', generateStudentReport);
         startDateInput.addEventListener('change', generateStudentReport);
         endDateInput.addEventListener('change', generateStudentReport);
-        
+
         // Date report generation
         const reportDateInput = document.getElementById('report-date');
         const dateReportContent = document.getElementById('date-report-content');
-        
+
         function generateDateReport() {
             const selectedDate = reportDateInput.value;
             console.log("Generating date report for:", selectedDate);
-            
+
             if (!selectedDate) {
                 dateReportContent.innerHTML = `
                     <div class="alert alert-info">
@@ -342,7 +342,7 @@
                 `;
                 return;
             }
-            
+
             // Show loading indicator
             dateReportContent.innerHTML = `
                 <div class="text-center py-4">
@@ -352,11 +352,11 @@
                     <p class="mt-2">Loading attendance data...</p>
                 </div>
             `;
-            
+
             // Fetch data from the server
             const apiUrl = `/api/date_attendance?date=${selectedDate}`;
             console.log("Fetching data from:", apiUrl);
-            
+
             fetch(apiUrl)
                 .then(response => {
                     console.log("API Response status:", response.status);
@@ -370,7 +370,7 @@
                     // Generate HTML output
                     let html = `
                         <h4>Attendance for ${selectedDate}</h4>
-                        
+
                         <div class="row mb-4">
                             <div class="col-md-3">
                                 <div class="card bg-success text-white">
@@ -406,7 +406,7 @@
                             </div>
                         </div>
                     `;
-                    
+
                     if (data.attendance_records.length === 0) {
                         html += `
                             <div class="alert alert-info">
@@ -427,14 +427,14 @@
                                     </thead>
                                     <tbody>
                         `;
-                        
+
                         // Sort by name
                         data.attendance_records.sort((a, b) => a.name.localeCompare(b.name));
-                        
+
                         for (const student of data.attendance_records) {
                             const statusClass = student.status === 'Present' ? 'text-success' :
                                                student.status === 'Late' ? 'text-warning' : 'text-danger';
-                            
+
                             html += `
                                 <tr>
                                     <td>${student.display_id}</td>
@@ -444,14 +444,14 @@
                                 </tr>
                             `;
                         }
-                        
+
                         html += `
                                     </tbody>
                                 </table>
                             </div>
                         `;
                     }
-                    
+
                     dateReportContent.innerHTML = html;
                 })
                 .catch(error => {
@@ -464,17 +464,17 @@
                     `;
                 });
         }
-        
+
         // Add event listener for date changes
         reportDateInput.addEventListener('change', generateDateReport);
-        
+
         // Also trigger the report when the date tab is shown
         document.getElementById('date-tab').addEventListener('click', function() {
             if (reportDateInput.value) {
                 generateDateReport();
             }
         });
-        
+
         // Initial report generation
         if (reportDateInput.value) {
             setTimeout(generateDateReport, 500); // Slight delay to ensure everything is loaded
