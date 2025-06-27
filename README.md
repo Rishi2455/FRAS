@@ -123,7 +123,7 @@ When running locally, you can take advantage of the full face recognition capabi
    ```
    python main.py
    ```
-4. Open a browser and navigate to `http://localhost:5001`
+4. Open a browser and navigate to `http://localhost:5000`
 
 ## Notes for Local Development with Face Recognition
 
