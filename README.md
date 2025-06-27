@@ -32,14 +32,14 @@ A comprehensive Python-based face recognition attendance management system desig
 2. Open a Bash console from the Dashboard
 3. Clone this repository:
    ```
-   git clone https://github.com/yourusername/face-recognition-attendance.git
+   git clone https://github.com/Rishi2455/FRAS.git
    ```
 
 ### Step 2: Set Up a Virtual Environment
 
 1. In the PythonAnywhere Bash console, navigate to your project directory:
    ```
-   cd face-recognition-attendance
+   cd FRAS
    ```
 
 2. Create a virtual environment:
@@ -69,14 +69,14 @@ A comprehensive Python-based face recognition attendance management system desig
 
 ### Step 5: Configure WSGI File
 
-1. In the Web tab, click on the WSGI file link (e.g., `/var/www/yourusername_pythonanywhere_com_wsgi.py`)
+1. In the Web tab, click on the WSGI file link (e.g., `/var/www/Rishi2455_pythonanywhere_com_wsgi.py`)
 2. Replace the contents with:
    ```python
    import sys
    import os
 
    # Add your project path to the sys.path
-   project_home = '/home/yourusername/face-recognition-attendance'
+   project_home = '/home/Rishi2455/FRAS'
    if project_home not in sys.path:
        sys.path = [project_home] + sys.path
 
@@ -90,7 +90,7 @@ A comprehensive Python-based face recognition attendance management system desig
 
 1. In the Web tab, under "Static files", add the following:
    - URL: `/static/`
-   - Directory: `/home/yourusername/face-recognition-attendance/static/`
+   - Directory: `/home/Rishi2455/FRAS/static/`
 
 ### Step 7: Create Database
 
@@ -111,7 +111,7 @@ A comprehensive Python-based face recognition attendance management system desig
 
 1. In the Web tab, click the "Reload" button
 
-Your attendance system should now be running on your PythonAnywhere domain (yourusername.pythonanywhere.com).
+Your attendance system should now be running on your PythonAnywhere domain (Rishi2455.pythonanywhere.com).
 
 ## Running Locally with Face Recognition
 
