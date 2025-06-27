@@ -1,5 +1,5 @@
 /**
- * Reports JavaScript 
+ * Reports JavaScript
  * Handles attendance report data visualization using Chart.js
  */
 
@@ -7,15 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if we're on the reports page
     const attendanceChart = document.getElementById('attendance-chart');
     const studentChart = document.getElementById('student-chart');
-    
+
     if (!attendanceChart && !studentChart) return; // Not on the reports page
-    
+
     // Fetch date-based report data
     function fetchDateReport(date) {
         console.log("Generating date report for:", date);
         const url = `/api/date_attendance?date=${date}`;
         console.log("Fetching data from:", url);
-        
+
         fetch(url)
             .then(response => {
                 console.log("API Response status:", response.status);
@@ -34,11 +34,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 showError("Failed to load attendance data. Please try again.");
             });
     }
-    
+
     // Fetch student-based report data
     function fetchStudentReport(studentId, startDate, endDate) {
         const url = `/api/student_attendance?student_id=${studentId}&start_date=${startDate}&end_date=${endDate}`;
-        
+
         fetch(url)
             .then(response => response.json())
             .then(data => {
@@ -53,16 +53,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 showError("Failed to load student attendance data. Please try again.");
             });
     }
-    
+
     // Update the date-based attendance chart
     function updateDateChart(data) {
         if (!attendanceChart) return;
-        
+
         // Create or update chart
         if (window.attendanceChartInstance) {
             window.attendanceChartInstance.destroy();
         }
-        
+
         const ctx = attendanceChart.getContext('2d');
         window.attendanceChartInstance = new Chart(ctx, {
             type: 'doughnut',
@@ -111,30 +111,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Update the student-specific attendance chart
     function updateStudentChart(data) {
         if (!studentChart) return;
-        
+
         // Prepare data for chart - count status occurrences by date
         const dateLabels = [];
         const presentData = [];
         const lateData = [];
         const absentData = [];
-        
+
         // Process attendance records
         data.attendance_records.forEach(record => {
             if (!dateLabels.includes(record.date)) {
                 dateLabels.push(record.date);
             }
-            
+
             const index = dateLabels.indexOf(record.date);
-            
+
             // Initialize data arrays
             if (presentData.length <= index) presentData.push(0);
             if (lateData.length <= index) lateData.push(0);
             if (absentData.length <= index) absentData.push(0);
-            
+
             // Increment appropriate counter
             if (record.status === 'Present') {
                 presentData[index]++;
@@ -144,12 +144,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 absentData[index]++;
             }
         });
-        
+
         // Create or update chart
         if (window.studentChartInstance) {
             window.studentChartInstance.destroy();
         }
-        
+
         const ctx = studentChart.getContext('2d');
         window.studentChartInstance = new Chart(ctx, {
             type: 'bar',
@@ -202,14 +202,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     // Update attendance table with records
     function updateAttendanceTable(records) {
         const tableBody = document.getElementById('attendance-table-body');
         if (!tableBody) return;
-        
+
         tableBody.innerHTML = '';
-        
+
         if (records.length === 0) {
             tableBody.innerHTML = `
                 <tr>
@@ -218,11 +218,11 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             return;
         }
-        
+
         records.forEach(record => {
-            const statusClass = record.status === 'Present' ? 'status-present' : 
+            const statusClass = record.status === 'Present' ? 'status-present' :
                               (record.status === 'Late' ? 'status-late' : 'status-absent');
-            
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${record.display_id}</td>
@@ -233,14 +233,14 @@ document.addEventListener('DOMContentLoaded', function() {
             tableBody.appendChild(row);
         });
     }
-    
+
     // Update student attendance table with records
     function updateStudentAttendanceTable(records) {
         const tableBody = document.getElementById('student-attendance-table-body');
         if (!tableBody) return;
-        
+
         tableBody.innerHTML = '';
-        
+
         if (records.length === 0) {
             tableBody.innerHTML = `
                 <tr>
@@ -249,11 +249,11 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             return;
         }
-        
+
         records.forEach(record => {
-            const statusClass = record.status === 'Present' ? 'status-present' : 
+            const statusClass = record.status === 'Present' ? 'status-present' :
                               (record.status === 'Late' ? 'status-late' : 'status-absent');
-            
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${record.date}</td>
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tableBody.appendChild(row);
         });
     }
-    
+
     // Update attendance stats display
     function updateAttendanceStats(stats) {
         if (document.getElementById('total-count')) {
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('attendance-rate').textContent = `${Math.round(stats.attendance_rate)}%`;
         }
     }
-    
+
     // Update student stats display
     function updateStudentStats(stats) {
         if (document.getElementById('student-total')) {
@@ -302,62 +302,62 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('student-rate').textContent = `${rate}%`;
         }
     }
-    
+
     // Show error message
     function showError(message) {
         const errorContainer = document.getElementById('error-container');
         if (!errorContainer) return;
-        
+
         errorContainer.textContent = message;
         errorContainer.classList.remove('d-none');
-        
+
         setTimeout(() => {
             errorContainer.classList.add('d-none');
         }, 5000);
     }
-    
+
     // Set up event listeners for date selector
     const dateSelector = document.getElementById('date-selector');
     if (dateSelector) {
         // Set default date to today
         const today = new Date().toISOString().split('T')[0];
         dateSelector.value = today;
-        
+
         // Initial data load
         fetchDateReport(today);
-        
+
         // Add change event listener
         dateSelector.addEventListener('change', function() {
             fetchDateReport(this.value);
         });
     }
-    
+
     // Set up event listeners for student and date range selectors
     const studentSelector = document.getElementById('student-selector');
     const startDateSelector = document.getElementById('start-date');
     const endDateSelector = document.getElementById('end-date');
     const generateReportBtn = document.getElementById('generate-report');
-    
+
     if (studentSelector && startDateSelector && endDateSelector && generateReportBtn) {
         // Set default dates
         const today = new Date();
         const oneMonthAgo = new Date();
         oneMonthAgo.setMonth(today.getMonth() - 1);
-        
+
         startDateSelector.value = oneMonthAgo.toISOString().split('T')[0];
         endDateSelector.value = today.toISOString().split('T')[0];
-        
+
         // Add click event listener for the generate report button
         generateReportBtn.addEventListener('click', function() {
             const studentId = studentSelector.value;
             const startDate = startDateSelector.value;
             const endDate = endDateSelector.value;
-            
+
             if (!studentId) {
                 showError("Please select a student");
                 return;
             }
-            
+
             fetchStudentReport(studentId, startDate, endDate);
         });
     }

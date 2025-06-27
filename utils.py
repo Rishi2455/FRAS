@@ -36,14 +36,14 @@ def calculate_date_range(start_date_str, end_date_str):
     """Calculate a range of dates between start and end dates."""
     start_date = parse_date(start_date_str)
     end_date = parse_date(end_date_str)
-    
+
     date_range = []
     current_date = start_date
-    
+
     while current_date <= end_date:
         date_range.append(format_date(current_date))
         current_date += datetime.timedelta(days=1)
-    
+
     return date_range
 
 def validate_student_id(student_id):

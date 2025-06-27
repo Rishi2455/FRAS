@@ -11,7 +11,7 @@
                 <i class="fas fa-plus me-2"></i> Add New Student
             </a>
         </div>
-        
+
         {% if students %}
             <div class="row">
                 {% for student in students %}
@@ -20,11 +20,11 @@
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-3">
                                     {% if student.image_path %}
-                                        <img src="{{ url_for('uploaded_file', filename=student.image_path) }}" 
-                                             class="rounded-circle me-3" alt="{{ student.name }}" 
+                                        <img src="{{ url_for('uploaded_file', filename=student.image_path) }}"
+                                             class="rounded-circle me-3" alt="{{ student.name }}"
                                              style="width: 64px; height: 64px; object-fit: cover;">
                                     {% else %}
-                                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-3"
                                              style="width: 64px; height: 64px;">
                                             <span class="h3 m-0 text-white">{{ student.name[0] }}</span>
                                         </div>
@@ -34,7 +34,7 @@
                                         <p class="text-secondary mb-0">ID: {{ student.student_id }}</p>
                                     </div>
                                 </div>
-                                
+
                                 <div class="mt-3">
                                     <a href="{{ url_for('view_student', id=student.id) }}" class="btn btn-sm btn-outline-primary me-2">
                                         <i class="fas fa-eye"></i> View
@@ -42,14 +42,14 @@
                                     <a href="{{ url_for('edit_student', id=student.id) }}" class="btn btn-sm btn-outline-secondary me-2">
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
                                             data-bs-toggle="modal" data-bs-target="#deleteModal-{{ student.id }}">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Delete Confirmation Modal -->
                         <div class="modal fade" id="deleteModal-{{ student.id }}" tabindex="-1">
                             <div class="modal-dialog">

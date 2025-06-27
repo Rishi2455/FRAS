@@ -7,6 +7,9 @@ import numpy as np
 from face_recognizer import FaceRecognizer
 from io import StringIO
 from datetime import timedelta, datetime
+import pandas as pd
+from io import BytesIO
+import openpyxl.utils
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_from_directory, Response
 from sqlalchemy import func
@@ -248,9 +251,9 @@ def attendance():
     # Get attendance for selected date
     attendances = {a.student_id: a for a in Attendance.query.filter_by(date=selected_date).all()}
 
-    return render_template('attendance/mark.html', 
-                          students=students, 
-                          attendances=attendances, 
+    return render_template('attendance/mark.html',
+                          students=students,
+                          attendances=attendances,
                           selected_date=selected_date)
 
 
@@ -315,20 +318,36 @@ def mark_attendance():
                 # Case 1: A custom time was provided in the form
                 if has_custom_time:
                     try:
-                        time_str = request.form[time_field_name]
+                        time_str = request.form[time_field_name].strip()
                         print(f"Custom time provided for student {student_id}: {time_str}")
-                        # Create a full datetime object first to handle both 12 and 24-hour formats
-                        current_date = get_current_datetime().date()
-                        # Try parsing with AM/PM format first
+
+                        # First try parsing the time directly
                         try:
-                            dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %I:%M:%S %p")
-                        except ValueError:
-                            # If that fails, try 24-hour format
-                            dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %H:%M:%S")
-                        record.time_in = dt.time()
+                            # Try 12-hour format with AM/PM
+                            if "AM" in time_str.upper() or "PM" in time_str.upper():
+                                # Remove any icons or extra spaces from the time string
+                                time_str = ' '.join([part for part in time_str.split() if ':' in part or part.upper() in ['AM', 'PM']])
+                                parsed_time = datetime.strptime(time_str, "%I:%M:%S %p").time()
+                            else:
+                                # Try 24-hour format
+                                time_str = time_str.split()[0] if ' ' in time_str else time_str  # Remove any extra text
+                                parsed_time = datetime.strptime(time_str, "%H:%M:%S").time()
+                            record.time_in = parsed_time
+                        except ValueError as e:
+                            print(f"Direct time parsing failed: {e}")
+                            # If direct parsing fails, try with current date
+                            current_date = get_current_datetime().date()
+                            try:
+                                dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %I:%M:%S %p")
+                                record.time_in = dt.time()
+                            except ValueError:
+                                dt = datetime.strptime(f"{current_date} {time_str}", "%Y-%m-%d %H:%M:%S")
+                                record.time_in = dt.time()
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time: {e}")
-                        # Keep the existing time_in if present, otherwise use current time
+                        # Keep existing time_in if present, otherwise use current time
+                        if not record.time_in:
+                            record.time_in = get_current_datetime().time()
                         if old_time_in is None:
                             record.time_in = current_time
 
@@ -354,16 +373,22 @@ def mark_attendance():
                 # If a custom time was provided in the form, use it
                 if has_custom_time:
                     try:
-                        time_str = request.form[time_field_name]
+                        time_str = request.form[time_field_name].strip()
                         print(f"New record with custom time for student {student_id}: {time_str}")
-                        # Convert hours to 24-hour format if needed
-                        if ':' in time_str:
-                            hours, minutes, seconds = map(int, time_str.split(':'))
-                            if hours < 24:  # Ensure valid hour
-                                time_in = datetime.time(hours, minutes, seconds)
+                        
+                        # Try parsing the time in different formats
+                        try:
+                            # Try 12-hour format with AM/PM
+                            if "AM" in time_str.upper() or "PM" in time_str.upper():
+                                # Remove any icons or extra spaces from the time string
+                                time_str = ' '.join([part for part in time_str.split() if ':' in part or part.upper() in ['AM', 'PM']])
+                                time_in = datetime.strptime(time_str, "%I:%M:%S %p").time()
                             else:
-                                time_in = current_time
-                        else:
+                                # Try 24-hour format
+                                time_str = time_str.split()[0] if ' ' in time_str else time_str  # Remove any extra text
+                                time_in = datetime.strptime(time_str, "%H:%M:%S").time()
+                        except ValueError as e:
+                            print(f"Error parsing time for new record: {e}")
                             time_in = current_time
                     except (ValueError, TypeError) as e:
                         print(f"Error parsing time for new record: {e}")
@@ -474,49 +499,88 @@ def recognize_faces():
         # Get image data from request
         data = request.get_json()
         if not data or 'image' not in data:
+            print("No image data provided in request")
             return jsonify({"error": "No image data provided"}), 400
 
-        # Convert base64 to image
-        image_data = data['image'].split(',')[1] if ',' in data['image'] else data['image']
-        image_bytes = base64.b64decode(image_data)
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        # Get the selected date from the request
+        selected_date_str = request.args.get('date')
+        try:
+            selected_date = parse_date(selected_date_str).date() if selected_date_str else get_current_datetime().date()
+        except ValueError:
+            print(f"Invalid date format: {selected_date_str}")
+            selected_date = get_current_datetime().date()
 
-        if frame is None:
-            return jsonify({"error": "Invalid image data"}), 400
+        # Convert base64 to image
+        try:
+            image_data = data['image'].split(',')[1] if ',' in data['image'] else data['image']
+            image_bytes = base64.b64decode(image_data)
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            if frame is None:
+                print("Failed to decode image data")
+                return jsonify({"error": "Invalid image data"}), 400
+        except Exception as e:
+            print(f"Error decoding image: {e}")
+            return jsonify({"error": "Failed to process image data"}), 400
 
         # Initialize face recognizer and recognize faces
-        face_recognizer = FaceRecognizer(db)
-        recognized_faces = face_recognizer.recognize_faces(frame)
+        try:
+            face_recognizer = FaceRecognizer(db)
+            recognized_faces = face_recognizer.recognize_faces(frame)
 
-        if recognized_faces:
-            # Get recognized students' IDs
-            current_date = datetime.now().date()
-            recognized_students = []
+            if recognized_faces:
+                recognized_students = []
 
-            for face in recognized_faces:
-                # Check if student is already marked present
-                attendance = Attendance.query.filter_by(
-                    student_id=face['student_id'],
-                    date=current_date
-                ).first()
+                for face in recognized_faces:
+                    try:
+                        # Check if student is already marked present for the selected date
+                        attendance = Attendance.query.filter_by(
+                            student_id=face['student_id'],
+                            date=selected_date
+                        ).first()
 
-                if not attendance or attendance.status == 'Absent':
-                    student = Student.query.get(face['student_id'])
-                    if student:
-                        recognized_students.append({
-                            "id": student.id,
-                            "name": student.name,
-                            "detection_time": face.get('detection_time', datetime.now().strftime('%H:%M:%S'))
-                        })
+                        if not attendance or attendance.status == 'Absent':
+                            student = Student.query.get(face['student_id'])
+                            if student:
+                                # Get current time in the correct timezone
+                                current_time = get_current_datetime().time()
+                                
+                                recognized_students.append({
+                                    "id": student.id,
+                                    "name": student.name,
+                                    "detection_time": current_time.strftime('%H:%M:%S')
+                                })
 
-            return jsonify({"recognized_students": recognized_students})
+                                # Create or update attendance record
+                                if not attendance:
+                                    attendance = Attendance(
+                                        student_id=student.id,
+                                        date=selected_date,
+                                        status='Present',
+                                        time_in=current_time
+                                    )
+                                    db.session.add(attendance)
+                                else:
+                                    attendance.status = 'Present'
+                                    attendance.time_in = current_time
 
-        return jsonify({"recognized_students": []})
+                    except Exception as e:
+                        print(f"Error processing recognized face: {e}")
+                        continue
+
+                db.session.commit()
+                return jsonify({"recognized_students": recognized_students})
+
+            return jsonify({"recognized_students": []})
+
+        except Exception as e:
+            print(f"Error in face recognition process: {e}")
+            return jsonify({"error": "Face recognition failed"}), 500
 
     except Exception as e:
-        print(f"Error in face recognition: {e}")
-        return jsonify({"error": str(e)}), 500
+        print(f"Unexpected error in face recognition endpoint: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/api/date_attendance')
 def api_date_attendance():
@@ -591,7 +655,60 @@ def export_attendance():
         # Get all students
         students = {student.id: student for student in Student.query.all()}
 
-        if export_format == 'csv':
+        if export_format == 'excel':
+            # Create a DataFrame with dates as columns
+            dates = pd.date_range(start=start_date, end=end_date, freq='D')
+            df = pd.DataFrame(index=[student.student_id for student in students.values()])
+            
+            # Initialize all cells as empty
+            for date in dates:
+                df[date.strftime('%Y-%m-%d')] = ''
+
+            # Fill in the attendance data
+            for attendance in attendances:
+                student = students.get(attendance.student_id)
+                if student:
+                    date_str = attendance.date.strftime('%Y-%m-%d')
+                    time_str = attendance.time_in.strftime('%H:%M:%S') if attendance.time_in else ''
+                    status = attendance.status
+                    row_index = student.student_id
+                    df.at[row_index, date_str] = time_str
+
+            # Create Excel file in memory
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name='Attendance', index_label='Student ID')
+                # Auto-adjust column widths
+                worksheet = writer.sheets['Attendance']
+                
+                # Set width for Student ID column
+                worksheet.column_dimensions['A'].width = 15
+                
+                # Set width for date columns
+                for idx, col in enumerate(df.columns):
+                    col_letter = openpyxl.utils.get_column_letter(idx + 2)
+                    worksheet.column_dimensions[col_letter].width = 12
+                
+                # Format the header row
+                header_font = openpyxl.styles.Font(bold=True)
+                for cell in worksheet[1]:
+                    cell.font = header_font
+                    cell.alignment = openpyxl.styles.Alignment(horizontal='center')
+                
+                # Format the data cells
+                for row in worksheet.iter_rows(min_row=2):
+                    for cell in row:
+                        cell.alignment = openpyxl.styles.Alignment(horizontal='center')
+
+            # Prepare response
+            output.seek(0)
+            filename = f"attendance_{start_date_str}_to_{end_date_str}.xlsx"
+            return Response(
+                output,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment;filename={filename}"}
+            )
+        elif export_format == 'csv':
             # Create CSV file in memory
             output = StringIO()
             writer = csv.writer(output)
@@ -622,7 +739,7 @@ def export_attendance():
                 headers={"Content-Disposition": f"attachment;filename={filename}"}
             )
         else:
-            flash('Only CSV export is currently supported', 'info')
+            flash('Only CSV and Excel export formats are currently supported', 'info')
             return redirect(url_for('export_attendance'))
 
     # Default dates: last 30 days

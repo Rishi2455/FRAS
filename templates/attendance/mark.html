@@ -27,7 +27,7 @@
                     <div>
                         <form id="dateSelectForm" class="d-flex align-items-center">
                             <label for="date-select" class="me-2 fw-bold">Change Date:</label>
-                            <input type="date" id="date-select" name="date" class="form-control shadow-sm" 
+                            <input type="date" id="date-select" name="date" class="form-control shadow-sm"
                                    value="{{ selected_date.strftime('%Y-%m-%d') }}">
                             <button type="submit" class="btn btn-primary ms-2">
                                 <i class="fas fa-calendar-day me-1"></i> Go
@@ -45,15 +45,99 @@
                                 </div>
                                 <div>
                                     <h5 class="mb-1 fw-bold">Face Recognition Mode</h5>
-                                    <p class="mb-0">Enable the camera to automatically mark attendance when faces are recognized.</p>
+                                    <p class="mb-0">Upload an image or enable the camera to automatically mark attendance when faces are recognized.</p>
                                 </div>
                                 <div class="ms-auto">
-                                    <button id="start-camera-btn" class="btn btn-primary btn-lg">
-                                        <i class="fas fa-camera me-2"></i> Start Camera
-                                    </button>
-                                    <button id="stop-camera-btn" class="btn btn-danger btn-lg d-none">
-                                        <i class="fas fa-stop-circle me-2"></i> Stop Camera
-                                    </button>
+                                    <div class="btn-group btn-group-lg" role="group">
+                                        <button type="button" id="upload-image-btn" class="btn btn-primary rounded-start">
+                                            <i class="fas fa-upload me-2"></i> Upload Image
+                                        </button>
+                                        <button id="start-camera-btn" class="btn btn-primary rounded-end">
+                                            <i class="fas fa-camera me-2"></i> Start Camera
+                                        </button>
+                                        <button id="stop-camera-btn" class="btn btn-danger d-none rounded-end">
+                                            <i class="fas fa-stop-circle me-2"></i> Stop Camera
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Preview Section -->
+                <div id="image-preview-section" class="row mb-4 d-none">
+                    <div class="col-md-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-dark text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-image me-2"></i>Image Preview
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="image-preview-container mb-3">
+                                            <img id="uploaded-image-preview" class="img-fluid rounded" style="max-height: 400px; width: 100%; object-fit: contain;">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex flex-column h-100 justify-content-center">
+                                            <button id="process-image-btn" class="btn btn-primary btn-lg mb-3">
+                                                <i class="fas fa-cogs me-2"></i> Process Image
+                                            </button>
+                                            <button id="cancel-upload-btn" class="btn btn-secondary btn-lg">
+                                                <i class="fas fa-times me-2"></i> Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeout Settings -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-header bg-dark text-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-clock me-2"></i>Attendance Time Window
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="start-time" class="form-label">Start Time</label>
+                                            <input type="time" id="start-time" class="form-control" value="09:00">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="end-time" class="form-label">End Time</label>
+                                            <input type="time" id="end-time" class="form-control" value="17:00">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="late-threshold" class="form-label">Late Threshold (minutes)</label>
+                                            <input type="number" id="late-threshold" class="form-control" value="15" min="1">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label for="timeout-duration" class="form-label">Auto Stop After (minutes)</label>
+                                            <input type="number" id="timeout-duration" class="form-control" value="30" min="1">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="alert alert-warning mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span id="time-window-status">Time window: 09:00 - 17:00</span>
                                 </div>
                             </div>
                         </div>
@@ -62,6 +146,11 @@
 
                 <div id="camera-container" class="row mb-4 d-none">
                     <div class="col-md-12">
+                        <div class="camera-selection mb-3">
+                            <select id="camera-select" class="form-select">
+                                <option value="">Select Camera</option>
+                            </select>
+                        </div>
                         <div class="camera-container mb-3">
                             <video id="webcam" class="camera-feed" autoplay playsinline></video>
                         </div>
@@ -164,22 +253,22 @@
                 </div>
 
                 <div class="progress mb-3" style="height: 10px;">
-                    <div class="progress-bar bg-success" role="progressbar" id="present-bar" 
-                         style="width: {{ (attendances.values()|selectattr('status', 'equalto', 'Present')|list|length / students|length * 100)|round|int if students else 0 }}%" 
-                         aria-valuenow="{{ attendances.values()|selectattr('status', 'equalto', 'Present')|list|length }}" 
-                         aria-valuemin="0" 
+                    <div class="progress-bar bg-success" role="progressbar" id="present-bar"
+                         style="width: {{ (attendances.values()|selectattr('status', 'equalto', 'Present')|list|length / students|length * 100)|round|int if students else 0 }}%"
+                         aria-valuenow="{{ attendances.values()|selectattr('status', 'equalto', 'Present')|list|length }}"
+                         aria-valuemin="0"
                          aria-valuemax="{{ students|length }}">
                     </div>
-                    <div class="progress-bar bg-warning" role="progressbar" id="late-bar" 
-                         style="width: {{ (attendances.values()|selectattr('status', 'equalto', 'Late')|list|length / students|length * 100)|round|int if students else 0 }}%" 
-                         aria-valuenow="{{ attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}" 
-                         aria-valuemin="0" 
+                    <div class="progress-bar bg-warning" role="progressbar" id="late-bar"
+                         style="width: {{ (attendances.values()|selectattr('status', 'equalto', 'Late')|list|length / students|length * 100)|round|int if students else 0 }}%"
+                         aria-valuenow="{{ attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}"
+                         aria-valuemin="0"
                          aria-valuemax="{{ students|length }}">
                     </div>
-                    <div class="progress-bar bg-danger" role="progressbar" id="absent-bar" 
-                         style="width: {{ ((students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length) / students|length * 100)|round|int if students else 0 }}%" 
-                         aria-valuenow="{{ students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}" 
-                         aria-valuemin="0" 
+                    <div class="progress-bar bg-danger" role="progressbar" id="absent-bar"
+                         style="width: {{ ((students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length) / students|length * 100)|round|int if students else 0 }}%"
+                         aria-valuenow="{{ students|length - attendances.values()|selectattr('status', 'equalto', 'Present')|list|length - attendances.values()|selectattr('status', 'equalto', 'Late')|list|length }}"
+                         aria-valuemin="0"
                          aria-valuemax="{{ students|length }}">
                     </div>
                 </div>
@@ -199,8 +288,8 @@
                                     <h6 class="mb-1 fw-bold">{{ students|selectattr('id', 'equalto', attendance.student_id)|map(attribute='name')|first }}</h6>
                                     <small class="text-muted">{{ attendance.time_in.strftime('%I:%M:%S %p') }}</small>
                                 </div>
-                                <p class="mb-1">Marked as 
-                                    <span class="status-badge 
+                                <p class="mb-1">Marked as
+                                    <span class="status-badge
                                     {% if attendance.status == 'Present' %}status-present
                                     {% elif attendance.status == 'Late' %}status-late
                                     {% else %}status-absent{% endif %}">
@@ -262,172 +351,378 @@
         const video = document.getElementById('webcam');
         const recognitionStatus = document.getElementById('recognition-status');
         let stream = null;
+        let detectionInterval = null;
+        let lastDetectionTime = 0;
+        const DETECTION_INTERVAL = 2000; // Increased to 2 seconds to reduce load
+        let isProcessing = false; // Flag to prevent overlapping processing
 
-        startCameraBtn.addEventListener('click', function() {
-            // Start camera
+        // Timeout settings
+        const startTimeInput = document.getElementById('start-time');
+        const endTimeInput = document.getElementById('end-time');
+        const lateThresholdInput = document.getElementById('late-threshold');
+        const timeoutDurationInput = document.getElementById('timeout-duration');
+        const timeWindowStatus = document.getElementById('time-window-status');
+        let timeoutTimer = null;
+        let autoStopTimer = null;
+
+        // Update time window status
+        function updateTimeWindowStatus() {
+            timeWindowStatus.textContent = `Time window: ${startTimeInput.value} - ${endTimeInput.value}`;
+        }
+
+        // Initialize time window status
+        updateTimeWindowStatus();
+
+        // Add event listeners for time inputs
+        startTimeInput.addEventListener('change', updateTimeWindowStatus);
+        endTimeInput.addEventListener('change', updateTimeWindowStatus);
+
+        // Check if current time is within the time window
+        function isWithinTimeWindow() {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            
+            const [startHour, startMinute] = startTimeInput.value.split(':').map(Number);
+            const [endHour, endMinute] = endTimeInput.value.split(':').map(Number);
+            
+            const windowStart = startHour * 60 + startMinute;
+            const windowEnd = endHour * 60 + endMinute;
+            
+            return currentTime >= windowStart && currentTime <= windowEnd;
+        }
+
+        // Check if student is late
+        function isLate() {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            
+            const [startHour, startMinute] = startTimeInput.value.split(':').map(Number);
+            const windowStart = startHour * 60 + startMinute;
+            const lateThreshold = parseInt(lateThresholdInput.value);
+            
+            return currentTime > windowStart + lateThreshold;
+        }
+
+        // Start auto-stop timer
+        function startAutoStopTimer() {
+            if (autoStopTimer) {
+                clearTimeout(autoStopTimer);
+            }
+            
+            const timeoutMinutes = parseInt(timeoutDurationInput.value);
+            autoStopTimer = setTimeout(() => {
+                showError('Session timed out. Please restart the camera.');
+                stopCamera();
+            }, timeoutMinutes * 60 * 1000);
+        }
+
+        // Add form submission handler to ensure timestamps are preserved
+        const attendanceForm = document.getElementById('attendance-form');
+        if (attendanceForm) {
+            attendanceForm.addEventListener('submit', function(e) {
+                // Preserve all timestamps before submission
+                const rows = document.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const studentIdInput = row.querySelector('input[name="student_id"]');
+                    if (studentIdInput) {
+                        const studentId = studentIdInput.value;
+                        const statusSelect = row.querySelector('select[name="status"]');
+                        const timeDisplay = row.querySelector('.badge.bg-success');
+                        
+                        // If student is marked as Present/Late and has a timestamp displayed
+                        if (statusSelect && ['Present', 'Late'].includes(statusSelect.value) && timeDisplay) {
+                            const timeText = timeDisplay.textContent.trim();
+                            // Create or update hidden timestamp field
+                            let timeField = row.querySelector(`input[name="time_in-${studentId}"]`);
+                            if (!timeField) {
+                                timeField = document.createElement('input');
+                                timeField.type = 'hidden';
+                                timeField.name = `time_in-${studentId}`;
+                                row.appendChild(timeField);
+                            }
+                            timeField.value = timeText;
+                        }
+                    }
+                });
+            });
+        }
+
+        // Camera selection functionality
+        const cameraSelect = document.getElementById('camera-select');
+        let availableCameras = [];
+
+        // Function to get available cameras
+        async function getAvailableCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                // Clear existing options
+                cameraSelect.innerHTML = '<option value="">Select Camera</option>';
+                
+                // Add camera options
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                
+                availableCameras = videoDevices;
+                return videoDevices;
+            } catch (error) {
+                console.error('Error getting cameras:', error);
+                showError('Error accessing camera devices');
+                return [];
+            }
+        }
+
+        // Update camera selection when starting camera
+        startCameraBtn.addEventListener('click', async function() {
+            // Check if within time window before starting camera
+            if (!isWithinTimeWindow()) {
+                showError('Cannot start camera outside of attendance time window');
+                return;
+            }
+
+            // Get available cameras
+            await getAvailableCameras();
+            
+            // Show camera selection if multiple cameras are available
+            if (availableCameras.length > 1) {
+                document.querySelector('.camera-selection').classList.remove('d-none');
+            } else {
+                document.querySelector('.camera-selection').classList.add('d-none');
+            }
+
+            // Start with default camera
+            startCamera();
+        });
+
+        // Handle camera selection change
+        cameraSelect.addEventListener('change', function() {
+            if (stream) {
+                stopCamera();
+                startCamera();
+            }
+        });
+
+        // Modified startCamera function
+        function startCamera() {
             cameraContainer.classList.remove('d-none');
             startCameraBtn.classList.add('d-none');
             stopCameraBtn.classList.remove('d-none');
 
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function(mediaStream) {
-                    stream = mediaStream;
-                    video.srcObject = mediaStream;
+            const selectedCameraId = cameraSelect.value;
+            const constraints = {
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined,
+                    facingMode: selectedCameraId ? undefined : "user"
+                }
+            };
 
-                    // Placeholder for face recognition
-                    // In a real implementation, we would continuously analyze video frames
-                    // and send them to a server for face recognition
-
-                    // For demo purposes, let's simulate face recognition
-                    window.faceRecognitionTimeout = setInterval(detectFace, 3000); // Check every 3 seconds
-                })
-                .catch(function(error) {
-                    console.error('Error accessing webcam:', error);
-                    alert('Could not access webcam. Please make sure your camera is connected and permissions are granted.');
-                    stopCamera();
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then(function(mediaStream) {
+                stream = mediaStream;
+                video.srcObject = mediaStream;
+                video.play().catch(error => {
+                    console.error('Error playing video:', error);
+                    showError('Error starting camera. Please try again.');
                 });
-        });
+
+                // Start continuous face detection
+                detectionInterval = setInterval(detectFaces, DETECTION_INTERVAL);
+
+                // Start auto-stop timer
+                startAutoStopTimer();
+            })
+            .catch(function(error) {
+                console.error('Error accessing webcam:', error);
+                showError('Could not access webcam. Please make sure your camera is connected and permissions are granted.');
+                stopCamera();
+            });
+        }
+
+        function showError(message) {
+            recognitionStatus.textContent = message;
+            recognitionStatus.classList.add('text-danger');
+            setTimeout(() => {
+                recognitionStatus.classList.remove('text-danger');
+            }, 3000);
+        }
 
         stopCameraBtn.addEventListener('click', stopCamera);
 
         function stopCamera() {
-            // Stop camera
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
-                stream = null; // Clear the stream reference to stop any ongoing face recognition
+                stream = null;
+            }
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            if (autoStopTimer) {
+                clearTimeout(autoStopTimer);
+                autoStopTimer = null;
             }
             cameraContainer.classList.add('d-none');
             startCameraBtn.classList.remove('d-none');
             stopCameraBtn.classList.add('d-none');
             recognitionStatus.textContent = "Waiting for face detection...";
-
-            // Clear any scheduled face recognition simulations
-            if (window.faceRecognitionTimeout) {
-                clearInterval(window.faceRecognitionTimeout);
-                window.faceRecognitionTimeout = null;
-            }
+            isProcessing = false;
         }
 
-        // Simulate face recognition for demo purposes
-        function detectFace() {
-            if (!stream) return; // Don't detect if camera is off
-
-            if (recognitionStatus) {
-                recognitionStatus.textContent = 'Face detected! Identifying...';
+        function detectFaces() {
+            if (!stream || isProcessing) return;
+            
+            // Check if within time window
+            if (!isWithinTimeWindow()) {
+                showError('Outside of attendance time window');
+                stopCamera();
+                return;
             }
 
+            const currentTime = Date.now();
+            if (currentTime - lastDetectionTime < DETECTION_INTERVAL) return;
+            
+            isProcessing = true;
+            lastDetectionTime = currentTime;
 
-            setTimeout(function() {
-                if (recognitionStatus) {
-                    recognitionStatus.textContent = 'Processing face features...';
+            try {
+                // Check if video is ready
+                if (video.readyState !== 4) {
+                    console.log('Video not ready');
+                    isProcessing = false;
+                    return;
                 }
 
-                markFirstAbsentStudent();
+                // Capture current frame from video
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            }, 1500);
-        }
+                // Convert to base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.8); // Reduced quality for faster processing
 
+                // Get the selected date from the hidden input
+                const selectedDate = document.querySelector('input[name="date"]').value;
 
-        function markFirstAbsentStudent() {
-            // Capture current frame from video
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Convert to base64
-            const imageData = canvas.toDataURL('image/jpeg');
-            
-            // Send to backend for face recognition
-            fetch('/api/recognize_faces', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    image: imageData
+                // Show processing status
+                recognitionStatus.textContent = "Processing faces...";
+
+                // Send to backend for face recognition
+                fetch(`/api/recognize_faces?date=${selectedDate}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: imageData
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.recognized_students && data.recognized_students.length > 0) {
-                    // Mark recognized students as present
-                    data.recognized_students.forEach(student => {
-                        const studentStatusSelect = document.getElementById(`status-${student.id}`);
-                        if (studentStatusSelect && studentStatusSelect.value === 'Absent') {
-                            studentStatusSelect.value = 'Present';
-                            updateAttendanceUI(student.id, student.name);
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.recognized_students && data.recognized_students.length > 0) {
+                        // Process all recognized students
+                        const recognizedNames = [];
+                        data.recognized_students.forEach(student => {
+                            const studentStatusSelect = document.getElementById(`status-${student.id}`);
+                            if (studentStatusSelect && studentStatusSelect.value === 'Absent') {
+                                // Set status based on time
+                                studentStatusSelect.value = isLate() ? 'Late' : 'Present';
+                                updateAttendanceUI(student.id, student.name);
+                                recognizedNames.push(student.name);
+                            }
+                        });
+
+                        // Update recognition status with all recognized names
+                        if (recognizedNames.length > 0) {
+                            recognitionStatus.textContent = `Faces recognized: ${recognizedNames.join(', ')}`;
+                        } else {
+                            recognitionStatus.textContent = "No new faces detected";
                         }
-                    });
-                    
-                    // Update recognition status
-                    const recognizedNames = data.recognized_students
-                        .map(student => student.name)
-                        .join(', ');
-                    recognitionStatus.textContent = `Faces recognized: ${recognizedNames}`;
-                } else {
-                    recognitionStatus.textContent = "No faces recognized";
-                }
-            })
-            .catch(error => {
-                console.error('Face recognition error:', error);
-                recognitionStatus.textContent = "Error processing faces";
-            });
+                    } else {
+                        recognitionStatus.textContent = "No faces recognized";
+                    }
+                })
+                .catch(error => {
+                    console.error('Face recognition error:', error);
+                    showError("Error processing faces. Please try again.");
+                })
+                .finally(() => {
+                    isProcessing = false;
+                });
+            } catch (error) {
+                console.error('Error in detectFaces:', error);
+                showError("Error in face detection. Please try again.");
+                isProcessing = false;
+            }
         }
+
+        // Add error handling for video element
+        video.addEventListener('error', function(e) {
+            console.error('Video error:', e);
+            showError('Error with video stream. Please try again.');
+            stopCamera();
+        });
+
+        // Add error handling for video loading
+        video.addEventListener('loadedmetadata', function() {
+            console.log('Video metadata loaded');
+        });
+
+        // Add error handling for video playing
+        video.addEventListener('playing', function() {
+            console.log('Video started playing');
+        });
 
         function updateAttendanceUI(studentId, studentName) {
-            // Update timestamp
+            // Get current time
             const now = new Date();
-            // Format time as 12-hour format with AM/PM
-            const hours = now.getHours() % 12 || 12; // Convert 0 to 12 for 12 AM
+            const hours = now.getHours() % 12 || 12;
             const minutes = now.getMinutes().toString().padStart(2, '0');
             const seconds = now.getSeconds().toString().padStart(2, '0');
             const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
             const timeStr = `${hours}:${minutes}:${seconds} ${ampm}`;
+            
+            // Format time for backend (24-hour format)
+            const hours24 = now.getHours().toString().padStart(2, '0');
+            const timeValue = `${hours24}:${minutes}:${seconds}`;
 
-            // Update the UI with the formatted time
+            // Update timestamp display in the UI
             const timeElement = document.getElementById(`updated-${studentId}`);
             if (timeElement) {
-                // Create or update badge with new time
-                const badge = document.createElement('div');
-                badge.className = 'badge bg-success rounded-pill';
-                badge.innerHTML = `<i class="fas fa-clock me-1"></i> ${timeStr}`;
-
-                // Replace existing content with the new badge
-                timeElement.innerHTML = '';
-                timeElement.appendChild(badge);
+                timeElement.innerHTML = `
+                    <div class="badge bg-success rounded-pill">
+                        <i class="fas fa-clock me-1"></i> ${timeStr}
+                    </div>
+                `;
             }
 
-            // Add or update hidden field with timestamp
-            const studentRow = document.querySelector(`input[name="student_id"][value="${studentId}"]`).closest('tr');
-            if (studentRow) {
-                // Format time in 24-hour format for backend
-                const hours24 = now.getHours().toString().padStart(2, '0');
-                const timeValue = `${hours24}:${minutes}:${seconds}`;
-
-                // Remove any existing timestamp field
-                const existingField = studentRow.querySelector(`input[name="time_in-${studentId}"]`);
-                if (existingField) {
-                    existingField.value = timeValue; // Update existing field
-                } else {
-                    // Add new timestamp field
-                    const timeField = document.createElement('input');
-                    timeField.type = 'hidden';
-                    timeField.name = `time_in-${studentId}`;
-                    timeField.value = timeValue;
-
-                    // Add it to the form
-                    const form = document.getElementById('attendance-form');
-                    form.appendChild(timeField);
-                }
-
-                // Also update the select element to "Present"
-                const statusSelect = document.getElementById(`status-${studentId}`);
-                if (statusSelect) {
-                    statusSelect.value = 'Present';
-                }
+            // Find the form to add our hidden field
+            const form = document.getElementById('attendance-form');
+            
+            // Get or create the timestamp field
+            let timeField = form.querySelector(`input[name="time_in-${studentId}"]`);
+            if (!timeField) {
+                timeField = document.createElement('input');
+                timeField.type = 'hidden';
+                timeField.name = `time_in-${studentId}`;
+                form.appendChild(timeField);
             }
+            
+            // Always update the time value
+            timeField.value = timeValue;
 
             // Show notification
             showNotification(studentName);
@@ -438,7 +733,6 @@
             // Add to activity log
             addActivityLog(studentName, 'Present', timeStr);
         }
-
 
         function showNotification(studentName) {
             const notificationContainer = document.getElementById('attendance-notification');
@@ -494,7 +788,7 @@
             const logEntry = document.createElement('div');
             logEntry.className = 'list-group-item list-group-item-action';
 
-            const statusClass = status === 'Present' ? 'text-success' : 
+            const statusClass = status === 'Present' ? 'text-success' :
                                status === 'Late' ? 'text-warning' : 'text-danger';
 
             logEntry.innerHTML = `
@@ -516,6 +810,135 @@
             const emptyMessage = activityLog.querySelector('.list-group-item:not(.list-group-item-action)');
             if (emptyMessage) {
                 activityLog.removeChild(emptyMessage);
+            }
+        }
+
+        // Image upload handling
+        const imageUpload = document.createElement('input');
+        imageUpload.type = 'file';
+        imageUpload.accept = 'image/*';
+        imageUpload.className = 'd-none';
+        document.body.appendChild(imageUpload);
+
+        document.getElementById('upload-image-btn').addEventListener('click', function() {
+            imageUpload.click();
+        });
+
+        imageUpload.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const imageData = e.target.result;
+                    // Show image preview
+                    const previewSection = document.getElementById('image-preview-section');
+                    const previewImage = document.getElementById('uploaded-image-preview');
+                    previewImage.src = imageData;
+                    previewSection.classList.remove('d-none');
+                };
+
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Process image button handler
+        document.getElementById('process-image-btn').addEventListener('click', function() {
+            const previewImage = document.getElementById('uploaded-image-preview');
+            if (previewImage.src) {
+                processImageForFaceRecognition(previewImage.src);
+            }
+        });
+
+        // Cancel upload button handler
+        document.getElementById('cancel-upload-btn').addEventListener('click', function() {
+            const previewSection = document.getElementById('image-preview-section');
+            const previewImage = document.getElementById('uploaded-image-preview');
+            previewImage.src = '';
+            previewSection.classList.add('d-none');
+            imageUpload.value = ''; // Reset file input
+        });
+
+        function processImageForFaceRecognition(imageData) {
+            // Show loading state
+            const recognitionStatus = document.getElementById('recognition-status');
+            const detectionSpinner = document.getElementById('detection-spinner');
+            recognitionStatus.textContent = 'Processing image...';
+            detectionSpinner.classList.remove('d-none');
+
+            // Disable process button during processing
+            const processButton = document.getElementById('process-image-btn');
+            processButton.disabled = true;
+            processButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processing...';
+
+            // Send image to server for face recognition
+            fetch('/api/recognize_faces', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image: imageData,
+                    date: document.querySelector('input[name="date"]').value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Update attendance status for recognized students
+                data.recognized_students.forEach(student => {
+                    const statusSelect = document.getElementById(`status-${student.id}`);
+                    if (statusSelect) {
+                        statusSelect.value = 'Present';
+                        const timeField = document.querySelector(`input[name="time_in-${student.id}"]`);
+                        if (timeField) {
+                            timeField.value = student.detection_time;
+                        }
+                        updateStatusBadge(student.id, 'Present', student.detection_time);
+                        // Show notification for each recognized student
+                        showNotification(student.name);
+                    }
+                });
+
+                // Update summary counts
+                updateSummaryCounts();
+
+                // Show success message
+                recognitionStatus.textContent = `Successfully processed image. Recognized ${data.recognized_students.length} students.`;
+                
+                // Hide preview section after successful processing
+                const previewSection = document.getElementById('image-preview-section');
+                previewSection.classList.add('d-none');
+
+                // Add to activity log
+                data.recognized_students.forEach(student => {
+                    addActivityLog(student.name, 'Present', student.detection_time);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                recognitionStatus.textContent = 'Error processing image: ' + error.message;
+            })
+            .finally(() => {
+                detectionSpinner.classList.add('d-none');
+                // Re-enable process button
+                processButton.disabled = false;
+                processButton.innerHTML = '<i class="fas fa-cogs me-2"></i> Process Image';
+            });
+        }
+
+        function updateStatusBadge(studentId, status, time) {
+            const updatedCell = document.getElementById(`updated-${studentId}`);
+            if (updatedCell) {
+                updatedCell.innerHTML = `
+                    <div class="badge bg-success rounded-pill">
+                        <i class="fas fa-clock me-1"></i>
+                        ${time}
+                    </div>
+                `;
             }
         }
     });

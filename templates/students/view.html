@@ -8,37 +8,37 @@
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body text-center p-4">
                 {% if student.image_path %}
-                    <img src="{{ url_for('uploaded_file', filename=student.image_path) }}" 
-                         class="rounded-circle mb-3" alt="{{ student.name }}" 
+                    <img src="{{ url_for('uploaded_file', filename=student.image_path) }}"
+                         class="rounded-circle mb-3" alt="{{ student.name }}"
                          style="width: 160px; height: 160px; object-fit: cover;">
                 {% else %}
-                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" 
+                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
                          style="width: 160px; height: 160px;">
                         <span class="display-4 text-white">{{ student.name[0] }}</span>
                     </div>
                 {% endif %}
-                
+
                 <h2 class="card-title">{{ student.name }}</h2>
                 <p class="text-secondary">ID: {{ student.student_id }}</p>
-                
+
                 {% if student.email %}
                     <p><i class="fas fa-envelope me-2"></i>{{ student.email }}</p>
                 {% endif %}
-                
+
                 <p><i class="fas fa-calendar me-2"></i>Added on {{ student.created_at.strftime('%Y-%m-%d') }}</p>
-                
+
                 <div class="d-flex justify-content-center mt-3">
                     <a href="{{ url_for('edit_student', id=student.id) }}" class="btn btn-primary me-2">
                         <i class="fas fa-edit me-2"></i> Edit
                     </a>
-                    <button type="button" class="btn btn-danger" 
+                    <button type="button" class="btn btn-danger"
                             data-bs-toggle="modal" data-bs-target="#deleteModal">
                         <i class="fas fa-trash me-2"></i> Delete
                     </button>
                 </div>
             </div>
         </div>
-        
+
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-dark text-white">
                 <h5 class="card-title mb-0">Attendance Summary</h5>
@@ -64,20 +64,20 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="mt-3">
                     <div class="progress" style="height: 10px;">
                         {% set present_count = attendances|selectattr('status', 'equalto', 'Present')|list|length %}
                         {% set late_count = attendances|selectattr('status', 'equalto', 'Late')|list|length %}
                         {% set absent_count = attendances|selectattr('status', 'equalto', 'Absent')|list|length %}
                         {% set total = present_count + late_count + absent_count %}
-                        
+
                         {% if total > 0 %}
-                            <div class="progress-bar bg-success" role="progressbar" 
+                            <div class="progress-bar bg-success" role="progressbar"
                                  style="width: {{ present_count / total * 100 }}%"></div>
-                            <div class="progress-bar bg-warning" role="progressbar" 
+                            <div class="progress-bar bg-warning" role="progressbar"
                                  style="width: {{ late_count / total * 100 }}%"></div>
-                            <div class="progress-bar bg-danger" role="progressbar" 
+                            <div class="progress-bar bg-danger" role="progressbar"
                                  style="width: {{ absent_count / total * 100 }}%"></div>
                         {% else %}
                             <div class="progress-bar" role="progressbar" style="width: 0%"></div>
@@ -97,7 +97,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-md-8">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
@@ -114,8 +114,6 @@
                                 <th>Date</th>
                                 <th>Status</th>
                                 <th>Time In</th>
-                                <th>Time Out</th>
-                                <th>Notes</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -130,12 +128,10 @@
                                         </span>
                                     </td>
                                     <td>{{ attendance.time_in.strftime('%H:%M:%S') if attendance.time_in else '-' }}</td>
-                                    <td>{{ attendance.time_out.strftime('%H:%M:%S') if attendance.time_out else '-' }}</td>
-                                    <td>{{ attendance.notes or '-' }}</td>
                                 </tr>
                             {% else %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-3">No attendance records found for this student.</td>
+                                    <td colspan="3" class="text-center py-3">No attendance records found for this student.</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -167,8 +163,181 @@
         </div>
     </div>
 </div>
+
+<!-- Notes Modal -->
+<div class="modal fade" id="notesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Attendance Notes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="notesForm">
+                    <input type="hidden" id="attendanceId" name="attendance_id">
+                    <div class="mb-3">
+                        <label for="notesText" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notesText" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveNotes">Save Notes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Time Out Modal -->
+<div class="modal fade" id="timeoutModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Record Time Out</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="timeoutForm">
+                    <input type="hidden" id="timeoutAttendanceId" name="attendance_id">
+                    <div class="mb-3">
+                        <label for="timeoutTime" class="form-label">Time Out</label>
+                        <input type="time" class="form-control" id="timeoutTime" name="time_out" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveTimeout">Record Time Out</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Notes functionality
+        const notesModal = new bootstrap.Modal(document.getElementById('notesModal'));
+        const notesForm = document.getElementById('notesForm');
+        const notesText = document.getElementById('notesText');
+        const saveNotesBtn = document.getElementById('saveNotes');
+
+        // Handle add/edit notes
+        document.querySelectorAll('.add-notes, .edit-notes').forEach(button => {
+            button.addEventListener('click', function() {
+                const attendanceId = this.dataset.attendanceId;
+                const notesText = this.closest('td').querySelector('.notes-text');
+                
+                document.getElementById('attendanceId').value = attendanceId;
+                document.getElementById('notesText').value = notesText ? notesText.textContent : '';
+                
+                notesModal.show();
+            });
+        });
+
+        // Save notes
+        saveNotesBtn.addEventListener('click', function() {
+            const attendanceId = document.getElementById('attendanceId').value;
+            const notes = document.getElementById('notesText').value;
+
+            fetch(`/api/attendance/${attendanceId}/notes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ notes })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the notes display
+                    const notesCell = document.querySelector(`[data-attendance-id="${attendanceId}"]`).closest('td');
+                    if (notes) {
+                        notesCell.innerHTML = `
+                            <span class="notes-text">${notes}</span>
+                            <button class="btn btn-sm btn-outline-info edit-notes ms-2" 
+                                    data-attendance-id="${attendanceId}"
+                                    data-bs-toggle="tooltip" 
+                                    title="Edit Notes">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        `;
+                    } else {
+                        notesCell.innerHTML = `
+                            <button class="btn btn-sm btn-outline-info add-notes" 
+                                    data-attendance-id="${attendanceId}"
+                                    data-bs-toggle="tooltip" 
+                                    title="Add Notes">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        `;
+                    }
+                    notesModal.hide();
+                }
+            })
+            .catch(error => {
+                console.error('Error saving notes:', error);
+                alert('Error saving notes. Please try again.');
+            });
+        });
+
+        // Time Out functionality
+        const timeoutModal = new bootstrap.Modal(document.getElementById('timeoutModal'));
+        const timeoutForm = document.getElementById('timeoutForm');
+        const saveTimeoutBtn = document.getElementById('saveTimeout');
+
+        // Handle record time out
+        document.querySelectorAll('.record-timeout').forEach(button => {
+            button.addEventListener('click', function() {
+                const attendanceId = this.dataset.attendanceId;
+                document.getElementById('timeoutAttendanceId').value = attendanceId;
+                
+                // Set current time as default
+                const now = new Date();
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                document.getElementById('timeoutTime').value = `${hours}:${minutes}`;
+                
+                timeoutModal.show();
+            });
+        });
+
+        // Save time out
+        saveTimeoutBtn.addEventListener('click', function() {
+            const attendanceId = document.getElementById('timeoutAttendanceId').value;
+            const timeOut = document.getElementById('timeoutTime').value;
+
+            fetch(`/api/attendance/${attendanceId}/timeout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ time_out: timeOut })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the time out display
+                    const timeoutCell = document.querySelector(`[data-attendance-id="${attendanceId}"]`).closest('td');
+                    timeoutCell.innerHTML = timeOut;
+                    timeoutModal.hide();
+                }
+            })
+            .catch(error => {
+                console.error('Error saving time out:', error);
+                alert('Error saving time out. Please try again.');
+            });
+        });
+    });
+</script>
 {% endblock %}

@@ -30,12 +30,12 @@ document.addEventListener('DOMContentLoaded', function() {
         cameraContainer.classList.remove('d-none');
 
         // Access webcam with higher resolution
-        navigator.mediaDevices.getUserMedia({ 
+        navigator.mediaDevices.getUserMedia({
             video: {
                 width: { ideal: 1280 },
                 height: { ideal: 720 },
                 facingMode: "user"
-            } 
+            }
         })
         .then(function(mediaStream) {
             stream = mediaStream;
@@ -96,36 +96,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000); // Check every 2 seconds
     }
 
-    function detectAndMarkAttendance() {
+    function detectAndMarkAttendance(detectedFaceName) {
         if (!stream) return;
 
-        // Get all absent students
-        const absentStudents = Array.from(document.querySelectorAll('table tbody tr'))
-            .filter(row => {
-                const statusSelect = row.querySelector('select[name="status"]');
-                return statusSelect && statusSelect.value === 'Absent';
-            });
-
-        if (absentStudents.length === 0) {
-            recognitionStatus.textContent = "All students already marked";
+        if (!detectedFaceName) {
+            recognitionStatus.textContent = "No face detected";
             return;
         }
 
-        // Take first absent student (in real system this would be the recognized face)
-        const studentRow = absentStudents[0];
-        const studentId = studentRow.querySelector('input[name="student_id"]').value;
-        const studentName = studentRow.querySelector('td:nth-child(2)').textContent.trim();
+        // Find student whose name matches the detected face
+        const studentRow = Array.from(document.querySelectorAll('table tbody tr')).find(row => {
+            const studentName = row.querySelector('td:nth-child(2)').textContent.trim();
+            const statusSelect = row.querySelector('select[name="status"]');
+            return statusSelect && statusSelect.value === 'Absent' && studentName === detectedFaceName;
+        });
 
-        // Mark attendance
+        if (!studentRow) {
+            recognitionStatus.textContent = `Face detected but no matching absent student found: ${detectedFaceName}`;
+            return;
+        }
+
+        const studentId = studentRow.querySelector('input[name="student_id"]').value;
         const statusSelect = document.getElementById(`status-${studentId}`);
+
         if (statusSelect) {
             statusSelect.value = 'Present';
             lastRecognizedTime = Date.now(); // Update last recognition time
 
-            recognitionStatus.textContent = `Face recognized: ${studentName}`;
-            updateAttendanceUI(studentId, studentName);
+            recognitionStatus.textContent = `Face recognized: ${detectedFaceName}`;
+            updateAttendanceUI(studentId, detectedFaceName);
         }
     }
+
 
     function updateAttendanceUI(studentId, studentName, detectionTime = null) {
         const now = new Date();
@@ -312,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h6 class="mb-1 fw-bold">${studentName}</h6>
                 <small class="text-muted">${timeString}</small>
             </div>
-            <p class="mb-1">Marked as 
+            <p class="mb-1">Marked as
                 <span class="status-badge status-present">Present</span>
             </p>
         `;
